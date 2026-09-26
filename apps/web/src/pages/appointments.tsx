@@ -4,10 +4,9 @@ import { Heading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
 import { Text } from '@/components/catalyst/text'
-import { APPOINTMENT_ICONS } from '@/components/patient/appointment-panel'
+import { APPOINTMENT_ICONS, appointmentTone } from '@/components/patient/labels'
 import { useLang } from '@/i18n'
 import { useClinicAppointments, useStaff } from '@/lib/queries'
-import { appointmentTone } from '@/pages/patient/appointments-tab'
 import type { AppointmentDto } from '@azza/shared'
 import clsx from 'clsx'
 import { useMemo } from 'react'
@@ -39,7 +38,7 @@ export function AppointmentsPage() {
 
   const groups = useMemo(() => {
     const out: { key: string; date: Date; items: AppointmentDto[] }[] = []
-    for (const a of list.data ?? []) {
+    for (const a of list.data?.items ?? []) {
       const date = new Date(a.startsAt)
       const key = dayKey(date)
       if (out.at(-1)?.key !== key) out.push({ key, date, items: [] })
@@ -88,6 +87,11 @@ export function AppointmentsPage() {
       </div>
 
       <RequestError error={list.error} />
+      {list.data?.truncated && (
+        <p className="rounded-lg bg-amber-50 px-4 py-2.5 text-sm/6 text-amber-900 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900">
+          {t('appointments.truncated', { count: list.data.items.length })}
+        </p>
+      )}
       {list.isPending && <div className="h-48 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />}
       {list.isSuccess && groups.length === 0 && (
         <div className="rounded-xl py-16 text-center ring-1 ring-zinc-950/8 dark:ring-white/10">

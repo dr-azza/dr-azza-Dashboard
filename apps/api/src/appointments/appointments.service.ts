@@ -1,8 +1,9 @@
-import type {
-  AppointmentDto,
-  CreateAppointmentInput,
-  ListAppointmentsQuery,
-  UpdateAppointmentInput,
+import {
+  type AppointmentDto,
+  type CreateAppointmentInput,
+  type ListAppointmentsQuery,
+  MAX_APPOINTMENT_MINUTES,
+  type UpdateAppointmentInput,
 } from '@azza/shared'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
 import type { AuthStaff } from '../auth/auth.types'
@@ -10,6 +11,12 @@ import { STAFF_REF_SELECT, staffRef } from '../common/format'
 import type { Prisma } from '../generated/prisma/client'
 import { PatientScope } from '../patients/patient-scope.service'
 import { PrismaService } from '../prisma/prisma.service'
+
+const MAX_DURATION_MS = MAX_APPOINTMENT_MINUTES * 60_000
+
+/** An appointment is over once its slot ends; until then it's current, even after it starts. */
+const hasEnded = (a: { startsAt: Date; durationMinutes: number }, now: Date) =>
+  a.startsAt.getTime() + a.durationMinutes * 60_000 <= now.getTime()
 
 const INCLUDE = {
   patient: { select: { id: true, fullName: true, fullNameAr: true, fileNumber: true } },
@@ -43,23 +50,30 @@ export class AppointmentsService {
     private readonly scope: PatientScope,
   ) {}
 
-  /** Upcoming first (soonest at the top), then past appointments newest first. */
+  /**
+   * Open appointments that haven't ended yet (soonest first, including one in progress), then
+   * everything else newest first: closed ones and ones whose time passed without being closed.
+   */
   async listForPatient(staff: AuthStaff, patientId: string) {
     await this.scope.require(staff, patientId)
     const now = new Date()
-    const [upcoming, past] = await Promise.all([
+    const [open, closed] = await Promise.all([
       this.prisma.appointment.findMany({
-        where: { patientId, status: 'SCHEDULED', startsAt: { gte: now } },
+        where: { patientId, status: 'SCHEDULED' },
         orderBy: { startsAt: 'asc' },
         include: INCLUDE,
       }),
       this.prisma.appointment.findMany({
-        where: { patientId, OR: [{ status: { not: 'SCHEDULED' } }, { startsAt: { lt: now } }] },
+        where: { patientId, status: { not: 'SCHEDULED' } },
         orderBy: { startsAt: 'desc' },
         take: 100,
         include: INCLUDE,
       }),
     ])
+    const upcoming = open.filter((a) => !hasEnded(a, now))
+    const past = [...open.filter((a) => hasEnded(a, now)), ...closed].sort(
+      (a, b) => b.startsAt.getTime() - a.startsAt.getTime(),
+    )
     return { upcoming: upcoming.map(toDto), past: past.map(toDto) }
   }
 
@@ -76,10 +90,10 @@ export class AppointmentsService {
         }),
       },
       orderBy: { startsAt: 'asc' },
-      take: query.limit,
+      take: query.limit + 1,
       include: INCLUDE,
     })
-    return rows.map(toDto)
+    return { items: rows.slice(0, query.limit).map(toDto), truncated: rows.length > query.limit }
   }
 
   async create(staff: AuthStaff, patientId: string, input: CreateAppointmentInput) {
@@ -134,13 +148,29 @@ export class AppointmentsService {
     return toDto(row)
   }
 
-  /** The next scheduled appointment from now, for the patient header. */
+  /** The patient's current or next open appointment, for the patient header. */
   async next(patientId: string) {
-    return this.prisma.appointment.findFirst({
-      where: { patientId, status: 'SCHEDULED', startsAt: { gte: new Date() } },
-      orderBy: { startsAt: 'asc' },
-      select: { id: true, type: true, title: true, startsAt: true },
-    })
+    const now = new Date()
+    const select = { id: true, type: true, title: true, startsAt: true, durationMinutes: true } as const
+    const [started, future] = await Promise.all([
+      // Started but possibly still under way: none can be longer than the maximum duration.
+      this.prisma.appointment.findMany({
+        where: {
+          patientId,
+          status: 'SCHEDULED',
+          startsAt: { gte: new Date(now.getTime() - MAX_DURATION_MS), lt: now },
+        },
+        orderBy: { startsAt: 'asc' },
+        select,
+      }),
+      this.prisma.appointment.findFirst({
+        where: { patientId, status: 'SCHEDULED', startsAt: { gte: now } },
+        orderBy: { startsAt: 'asc' },
+        select,
+      }),
+    ])
+    const next = started.find((a) => !hasEnded(a, now)) ?? future
+    return next ? { id: next.id, type: next.type, title: next.title, startsAt: next.startsAt } : null
   }
 
   private async requireStaff(staff: AuthStaff, staffId?: string | null) {

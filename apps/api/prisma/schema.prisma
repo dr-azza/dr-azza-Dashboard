@@ -325,6 +325,8 @@ model AuditLog {
   action   String
   entity   String
   entityId String?  @map("entity_id")
+  /// The patient whose record this touched, if any: drives the patient's activity log.
+  patientId String? @map("patient_id") @db.Uuid
   ip       String?
   meta     Json?
   at       DateTime @default(now()) @db.Timestamptz(3)
@@ -333,6 +335,7 @@ model AuditLog {
 
   @@index([clinicId, at(sort: Desc)])
   @@index([entity, entityId])
+  @@index([clinicId, patientId, id(sort: Desc)])
   @@map("audit_logs")
 }
 

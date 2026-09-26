@@ -1,13 +1,9 @@
-import type { ActivityDto, ActivityQuery, Page } from '@azza/shared'
+import { type ActivityDto, type ActivityQuery, type Page, READ_ACTION_SUFFIXES, READ_ACTIONS } from '@azza/shared'
 import { Injectable } from '@nestjs/common'
 import type { AuthStaff } from '../auth/auth.types'
 import type { Prisma } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 import { PatientScope } from './patient-scope.service'
-
-/** Read-only events: opening the record, lists, downloads. Hidden unless asked for. */
-const isView = (action: string) =>
-  /\.(view|list)$/.test(action) || action === 'file.download' || action.endsWith('.calendar.view')
 
 /**
  * A patient's activity log, built from the append-only audit trail, so it records every action
@@ -24,13 +20,16 @@ export class ActivityService {
     await this.scope.require(staff, patientId)
     const before = query.cursor && /^\d+$/.test(query.cursor) ? BigInt(query.cursor) : undefined
 
+    // Served by the (clinic_id, patient_id, id DESC) index.
     const where: Prisma.AuditLogWhereInput = {
       clinicId: staff.clinicId,
-      // Entries about this patient: anything under /patients/:id/… plus the patient record itself.
-      OR: [{ meta: { path: ['patientId'], equals: patientId } }, { entity: 'patient', entityId: patientId }],
+      patientId,
       ...(before && { id: { lt: before } }),
       ...(!query.includeViews && {
-        NOT: [{ action: { endsWith: '.view' } }, { action: { endsWith: '.list' } }, { action: 'file.download' }],
+        NOT: [
+          ...READ_ACTION_SUFFIXES.map((suffix) => ({ action: { endsWith: suffix } })),
+          { action: { in: [...READ_ACTIONS] } },
+        ],
       }),
     }
     const rows = await this.prisma.auditLog.findMany({ where, orderBy: { id: 'desc' }, take: query.limit + 1 })
@@ -55,20 +54,18 @@ export class ActivityService {
     const apptById = new Map(appointments.map((a) => [a.id, a]))
 
     return {
-      items: page
-        .filter((r) => query.includeViews || !isView(r.action))
-        .map((r) => ({
-          id: r.id.toString(),
-          at: r.at.toISOString(),
-          action: r.action,
-          entity: r.entity,
-          entityId: r.entityId,
-          actor: r.actorId ? (byId.get(r.actorId) ?? null) : null,
-          appointment: (() => {
-            const a = r.entity === 'appointment' && r.entityId ? apptById.get(r.entityId) : undefined
-            return a ? { type: a.type, title: a.title, startsAt: a.startsAt.toISOString() } : null
-          })(),
-        })),
+      items: page.map((r) => ({
+        id: r.id.toString(),
+        at: r.at.toISOString(),
+        action: r.action,
+        entity: r.entity,
+        entityId: r.entityId,
+        actor: r.actorId ? (byId.get(r.actorId) ?? null) : null,
+        appointment: (() => {
+          const a = r.entity === 'appointment' && r.entityId ? apptById.get(r.entityId) : undefined
+          return a ? { type: a.type, title: a.title, startsAt: a.startsAt.toISOString() } : null
+        })(),
+      })),
       nextCursor: rows.length > query.limit ? page[page.length - 1].id.toString() : null,
     }
   }

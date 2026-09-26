@@ -1,6 +1,7 @@
 import type {
   ActivityDto,
   AppointmentDto,
+  AppointmentRangeDto,
   AttachmentDto,
   CreateAppointmentInput,
   AttachmentKindCode,
@@ -149,6 +150,7 @@ export function useUpdatePatient(id: string) {
     mutationFn: (input: UpdatePatientInput) => api<PatientDto>(`/patients/${id}`, { method: 'PATCH', body: input }),
     onSuccess: (data) => {
       qc.setQueryData(keys.patient(id), data)
+      void qc.invalidateQueries({ queryKey: keys.part(id, 'activity') })
       void qc.invalidateQueries({ queryKey: ['patients'] })
       void qc.invalidateQueries({ queryKey: ['case-types'] })
     },
@@ -192,10 +194,8 @@ function usePatientMutation<TInput, TResult>(
       Promise.all([
         qc.invalidateQueries({ queryKey: keys.patient(id), exact: true }),
         qc.invalidateQueries({ queryKey: keys.part(id, 'timeline') }),
-        qc.invalidateQueries({
-          predicate: (q) =>
-            q.queryKey[0] === 'patient' && q.queryKey[1] === id && String(q.queryKey[2] ?? '').startsWith('activity'),
-        }),
+        // Every change lands in the activity log (both the changes-only and with-views variants).
+        qc.invalidateQueries({ queryKey: keys.part(id, 'activity') }),
         ...parts.map((p) => qc.invalidateQueries({ queryKey: keys.part(id, p) })),
         ...(listsToo
           ? [qc.invalidateQueries({ queryKey: ['patients'] }), qc.invalidateQueries({ queryKey: ['case-types'] })]
@@ -303,7 +303,7 @@ export const useClinicAppointments = (from: string, to: string, assignedToId?: s
   useQuery({
     queryKey: ['appointments', { from, to, assignedToId }],
     queryFn: () =>
-      api<AppointmentDto[]>(
+      api<AppointmentRangeDto>(
         `/appointments?${new URLSearchParams({ from, to, ...(assignedToId && { assignedToId }) })}`,
       ),
   })
@@ -327,7 +327,7 @@ export const useUpdateAppointment = (id: string) =>
 
 export function useActivity(id: string, includeViews: boolean) {
   return useInfiniteQuery({
-    queryKey: keys.part(id, `activity-${includeViews}`),
+    queryKey: [...keys.part(id, 'activity'), { includeViews }],
     initialPageParam: '',
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams({ includeViews: String(includeViews), limit: '50' })

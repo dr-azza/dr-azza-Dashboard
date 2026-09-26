@@ -5,6 +5,7 @@ import { Description, Field, FieldGroup, Label } from '@/components/catalyst/fie
 import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Textarea } from '@/components/catalyst/textarea'
+import { APPOINTMENT_ICONS } from '@/components/patient/labels'
 import { useLang } from '@/i18n'
 import { useCreateAppointment, useStaff, useUpdateAppointment } from '@/lib/queries'
 import {
@@ -13,26 +14,10 @@ import {
   type AppointmentDto,
   type AppointmentTypeCode,
   CreateAppointmentSchema,
+  type UpdateAppointmentInput,
 } from '@azza/shared'
-import {
-  BeakerIcon,
-  BuildingOffice2Icon,
-  CalendarDaysIcon,
-  ClipboardDocumentCheckIcon,
-  PhoneIcon,
-  ViewfinderCircleIcon,
-} from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useState } from 'react'
-
-export const APPOINTMENT_ICONS: Record<AppointmentTypeCode, typeof PhoneIcon> = {
-  VISIT: BuildingOffice2Icon,
-  CALL: PhoneIcon,
-  SCAN: ViewfinderCircleIcon,
-  LAB: BeakerIcon,
-  FOLLOW_UP: ClipboardDocumentCheckIcon,
-  OTHER: CalendarDaysIcon,
-}
 
 /** Round up to the next quarter hour, a sensible default start time. */
 function nextQuarterHour() {
@@ -58,8 +43,31 @@ export function AppointmentPanel({
   const create = useCreateAppointment(patientId)
   const update = useUpdateAppointment(patientId)
   const [type, setType] = useState<AppointmentTypeCode>(appointment?.type ?? 'VISIT')
+  // Controlled, so the current assignee stays selected while the staff list is still loading.
+  const [assignee, setAssignee] = useState(appointment?.assignedTo?.id ?? '')
   const [formError, setFormError] = useState<string | null>(null)
   const pending = create.isPending || update.isPending
+
+  const [initialStart] = useState(() =>
+    toLocalInputValue(appointment ? new Date(appointment.startsAt) : nextQuarterHour()),
+  )
+  const initialDuration = appointment?.durationMinutes ?? 15
+  // Keep a duration booked outside the presets (e.g. 25 or 120 min) selectable instead of losing it.
+  const durations = [...new Set<number>([...APPOINTMENT_DURATIONS, initialDuration])].sort((a, b) => a - b)
+  // The assignee may no longer be listed (deactivated); still show them rather than "Not assigned".
+  const current = appointment?.assignedTo
+  const staffOptions = [
+    ...(staff.data ?? []),
+    ...(current && !staff.data?.some((m) => m.id === current.id) ? [current] : []),
+  ]
+  const fieldLabel: Record<string, string> = {
+    type: t('record.appt.type'),
+    title: t('record.appt.title'),
+    startsAt: t('record.appt.date'),
+    durationMinutes: t('record.appt.duration'),
+    assignedToId: t('record.appt.with'),
+    notes: t('record.appt.notes'),
+  }
 
   return (
     <SidePanel
@@ -74,22 +82,34 @@ export function AppointmentPanel({
         const parsed = CreateAppointmentSchema.safeParse({
           type,
           title: strOrNull(f.get('title')),
-          startsAt: when ? new Date(when).toISOString() : '',
+          // An untouched start keeps the stored instant exactly (the input has no seconds).
+          startsAt:
+            appointment && when === initialStart ? appointment.startsAt : when ? new Date(when).toISOString() : '',
           durationMinutes: Number(f.get('durationMinutes')),
-          assignedToId: strOrNull(f.get('assignedToId')),
+          assignedToId: assignee || null,
           notes: strOrNull(f.get('notes')),
         })
-        if (!parsed.success) return setFormError(`${t('record.appt.date')}: ${parsed.error.issues[0]?.message}`)
-        setFormError(null)
-        if (appointment) {
-          await update.mutateAsync({
-            appointmentId: appointment.id,
-            ...parsed.data,
-            assignedToId: parsed.data.assignedToId ?? null,
-          })
-        } else {
-          await create.mutateAsync(parsed.data)
+        if (!parsed.success) {
+          const issue = parsed.error.issues[0]
+          const field = fieldLabel[String(issue?.path[0])]
+          return setFormError(field ? `${field}: ${issue?.message}` : (issue?.message ?? ''))
         }
+        setFormError(null)
+
+        if (!appointment) {
+          await create.mutateAsync(parsed.data)
+          return onClose()
+        }
+        // Send only what changed, so an edit never rewrites fields nobody touched.
+        const d = parsed.data
+        const changes: UpdateAppointmentInput = {}
+        if (d.type !== appointment.type) changes.type = d.type
+        if ((d.title ?? null) !== appointment.title) changes.title = d.title ?? null
+        if (d.startsAt !== appointment.startsAt) changes.startsAt = d.startsAt
+        if (d.durationMinutes !== appointment.durationMinutes) changes.durationMinutes = d.durationMinutes
+        if ((d.assignedToId ?? null) !== (current?.id ?? null)) changes.assignedToId = d.assignedToId ?? null
+        if ((d.notes ?? null) !== appointment.notes) changes.notes = d.notes ?? null
+        if (Object.keys(changes).length) await update.mutateAsync({ appointmentId: appointment.id, ...changes })
         onClose()
       }}
       actions={
@@ -139,17 +159,12 @@ export function AppointmentPanel({
         <div className="grid gap-6 sm:grid-cols-[minmax(0,1fr)_9rem]">
           <Field>
             <Label>{t('record.appt.date')}</Label>
-            <Input
-              type="datetime-local"
-              name="startsAt"
-              required
-              defaultValue={toLocalInputValue(appointment ? new Date(appointment.startsAt) : nextQuarterHour())}
-            />
+            <Input type="datetime-local" name="startsAt" required defaultValue={initialStart} />
           </Field>
           <Field>
             <Label>{t('record.appt.duration')}</Label>
-            <Select name="durationMinutes" defaultValue={String(appointment?.durationMinutes ?? 15)}>
-              {APPOINTMENT_DURATIONS.map((m) => (
+            <Select name="durationMinutes" defaultValue={String(initialDuration)}>
+              {durations.map((m) => (
                 <option key={m} value={m}>
                   {t('record.appt.minutes', { count: m })}
                 </option>
@@ -159,9 +174,9 @@ export function AppointmentPanel({
         </div>
         <Field>
           <Label>{t('record.appt.with')}</Label>
-          <Select name="assignedToId" defaultValue={appointment?.assignedTo?.id ?? ''}>
+          <Select name="assignedToId" value={assignee} onChange={(e) => setAssignee(e.target.value)}>
             <option value="">{t('record.appt.anyone')}</option>
-            {staff.data?.map((m) => (
+            {staffOptions.map((m) => (
               <option key={m.id} value={m.id}>
                 {m.fullName}
               </option>

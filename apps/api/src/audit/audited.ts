@@ -1,7 +1,7 @@
 import { type CallHandler, type ExecutionContext, Injectable, type NestInterceptor, SetMetadata } from '@nestjs/common'
 import { Reflector } from '@nestjs/core'
 import type { FastifyRequest } from 'fastify'
-import { tap } from 'rxjs'
+import { concatMap } from 'rxjs'
 import { AuditService } from './audit.service'
 
 const AUDIT = 'audit'
@@ -30,23 +30,24 @@ export class AuditInterceptor implements NestInterceptor {
 
     const request = context.switchToHttp().getRequest<FastifyRequest<{ Params: Record<string, string> }>>()
     return next.handle().pipe(
-      tap((result: unknown) => {
+      // Awaited before the response goes out, so a client that re-reads the activity log right
+      // after a change always sees it. AuditService.log never throws.
+      concatMap(async (result: unknown) => {
         const params = request.params ?? {}
         const resultId = result && typeof result === 'object' && 'id' in result ? String(result.id) : undefined
         const entityId = params.entryId ?? params.itemId ?? resultId ?? params.patientId ?? null
-        void this.audit.log({
+        // Every patient route is under /patients/:patientId; creating a patient links to the new one.
+        const patientId = params.patientId ?? (meta.entity === 'patient' && resultId) ?? null
+        await this.audit.log({
           clinicId: request.staff?.clinicId,
           actorId: request.staff?.id,
           action: meta.action,
           entity: meta.entity,
           entityId,
+          patientId: patientId || null,
           ip: request.ip,
-          meta: params.patientId
-            ? { patientId: params.patientId }
-            : meta.entity === 'patient' && resultId
-              ? { patientId: resultId }
-              : undefined,
         })
+        return result
       }),
     )
   }

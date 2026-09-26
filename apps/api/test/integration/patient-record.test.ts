@@ -262,7 +262,7 @@ describe.skipIf(!url)('patient record (integration)', () => {
 
   it('writes an audit entry for reads and changes', async () => {
     const actions = await db.auditLog.findMany({
-      where: { meta: { path: ['patientId'], equals: patientId } },
+      where: { patientId },
       select: { action: true },
     })
     const names = new Set(actions.map((a) => a.action))
@@ -368,7 +368,30 @@ describe.skipIf(!url)('patient record (integration)', () => {
     expect((await call('GET', `/patients/${patientId}`)).json().nextAppointment).toBeNull()
 
     const calendar = (await call('GET', `/appointments?from=${encodeURIComponent(new Date().toISOString())}`)).json()
-    expect(calendar.map((a: { id: string }) => a.id)).toContain(call1.json().id)
+    expect(calendar.items.map((a: { id: string }) => a.id)).toContain(call1.json().id)
+    expect(calendar.truncated).toBe(false)
+  })
+
+  it('keeps an appointment that is under way as current until its slot ends', async () => {
+    const started = await call('POST', `/patients/${patientId}/appointments`, {
+      type: 'VISIT',
+      startsAt: new Date(Date.now() - 10 * 60_000).toISOString(),
+      durationMinutes: 30,
+    })
+    const ended = await call('POST', `/patients/${patientId}/appointments`, {
+      type: 'CALL',
+      startsAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      durationMinutes: 15,
+    })
+    const list = (await call('GET', `/patients/${patientId}/appointments`)).json()
+    expect(list.upcoming[0].id).toBe(started.json().id)
+    expect(list.past.map((a: { id: string }) => a.id)).toContain(ended.json().id)
+    expect((await call('GET', `/patients/${patientId}`)).json().nextAppointment.id).toBe(started.json().id)
+
+    // The calendar says when it was cut short rather than silently dropping the rest.
+    const capped = (await call('GET', '/appointments?limit=1')).json()
+    expect(capped.items).toHaveLength(1)
+    expect(capped.truncated).toBe(true)
   })
 
   it('keeps an activity log of every change on the patient, with views on request', async () => {

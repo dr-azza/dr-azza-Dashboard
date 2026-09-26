@@ -259,6 +259,12 @@ export interface AppointmentDto {
 }
 
 /** One entry of a patient's activity log (from the audit trail): who did what, when. */
+/** A calendar range; `truncated` means more appointments matched than the limit returned. */
+export interface AppointmentRangeDto {
+  items: AppointmentDto[]
+  truncated: boolean
+}
+
 export interface ActivityDto {
   id: string
   at: string

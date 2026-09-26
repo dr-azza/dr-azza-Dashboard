@@ -5,20 +5,14 @@ import { Button } from '@/components/catalyst/button'
 import { Field, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Text } from '@/components/catalyst/text'
-import { APPOINTMENT_ICONS, AppointmentPanel } from '@/components/patient/appointment-panel'
+import { AppointmentPanel } from '@/components/patient/appointment-panel'
+import { APPOINTMENT_ICONS, appointmentTone } from '@/components/patient/labels'
 import { useLang } from '@/i18n'
 import { usePatientAppointments, useUpdateAppointment } from '@/lib/queries'
-import type { AppointmentDto, AppointmentStatusCode, Tone } from '@azza/shared'
+import type { AppointmentDto, AppointmentStatusCode } from '@azza/shared'
 import { PlusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useState } from 'react'
-
-export const appointmentTone: Record<AppointmentStatusCode, Tone> = {
-  SCHEDULED: 'info',
-  COMPLETED: 'ok',
-  CANCELLED: 'neutral',
-  NO_SHOW: 'warn',
-}
 
 export function AppointmentsTab({ patientId }: { patientId: string }) {
   const { t } = useLang()
@@ -64,7 +58,12 @@ function AppointmentRow({ patientId, appointment: a }: { patientId: string; appo
   const [cancelling, setCancelling] = useState(false)
   const Icon = APPOINTMENT_ICONS[a.type]
   const scheduled = a.status === 'SCHEDULED'
-  const overdue = scheduled && new Date(a.startsAt).getTime() < Date.now()
+  const start = new Date(a.startsAt).getTime()
+  const end = new Date(a.endsAt).getTime()
+  const now = Date.now()
+  // Open appointments: under way during their slot, past due once the slot ends without being closed.
+  const overdue = scheduled && end <= now
+  const inProgress = scheduled && start <= now && now < end
   const setStatus = (status: AppointmentStatusCode) => update.mutate({ appointmentId: a.id, status })
 
   return (
@@ -98,6 +97,8 @@ function AppointmentRow({ patientId, appointment: a }: { patientId: string; appo
       <div className="flex flex-wrap items-center gap-1">
         {overdue ? (
           <ToneBadge tone="warn">{t('record.appt.overdue')}</ToneBadge>
+        ) : inProgress ? (
+          <ToneBadge tone="ok">{t('record.appt.inProgress')}</ToneBadge>
         ) : (
           <ToneBadge tone={appointmentTone[a.status]}>{t(`record.appt.statuses.${a.status}`)}</ToneBadge>
         )}

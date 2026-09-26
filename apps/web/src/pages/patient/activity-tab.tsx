@@ -6,12 +6,10 @@ import { Label } from '@/components/catalyst/fieldset'
 import { Text } from '@/components/catalyst/text'
 import { useLang } from '@/i18n'
 import { useActivity } from '@/lib/queries'
-import type { ActivityDto } from '@azza/shared'
+import { type ActivityDto, isReadAction as isRead } from '@azza/shared'
 import { EyeIcon, PencilSquareIcon, PlusCircleIcon, TrashIcon, XCircleIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useState } from 'react'
-
-const isRead = (action: string) => /\.(view|list)$/.test(action) || action === 'file.download'
 
 function iconFor(action: string) {
   if (isRead(action)) return EyeIcon

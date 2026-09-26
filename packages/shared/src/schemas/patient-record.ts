@@ -206,13 +206,15 @@ export type CreateNoteInput = z.input<typeof CreateNoteSchema>
 
 export const APPOINTMENT_TYPES = ['VISIT', 'CALL', 'SCAN', 'LAB', 'FOLLOW_UP', 'OTHER'] as const
 export const APPOINTMENT_STATUSES = ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const
+/** Longest bookable appointment, in minutes (a full clinic day). */
+export const MAX_APPOINTMENT_MINUTES = 480
 export const APPOINTMENT_DURATIONS = [5, 10, 15, 20, 30, 45, 60, 90] as const
 
 export const CreateAppointmentSchema = z.object({
   type: z.enum(APPOINTMENT_TYPES),
   title: optionalText(120),
   startsAt: z.iso.datetime({ offset: true }),
-  durationMinutes: z.number().int().min(5).max(480).default(15),
+  durationMinutes: z.number().int().min(5).max(MAX_APPOINTMENT_MINUTES).default(15),
   assignedToId: z.uuid().nullish(),
   notes: optionalText(1000),
 })
@@ -223,7 +225,7 @@ export const UpdateAppointmentSchema = z
     type: z.enum(APPOINTMENT_TYPES),
     title: optionalText(120),
     startsAt: z.iso.datetime({ offset: true }),
-    durationMinutes: z.number().int().min(5).max(480),
+    durationMinutes: z.number().int().min(5).max(MAX_APPOINTMENT_MINUTES),
     assignedToId: z.uuid().nullable(),
     notes: optionalText(1000),
     status: z.enum(APPOINTMENT_STATUSES),
@@ -237,11 +239,17 @@ export const ListAppointmentsQuerySchema = z.object({
   to: z.iso.datetime({ offset: true }).optional(),
   status: z.enum(APPOINTMENT_STATUSES).optional(),
   assignedToId: z.uuid().optional(),
-  limit: z.coerce.number().int().min(1).max(500).default(200),
+  limit: z.coerce.number().int().min(1).max(1000).default(500),
 })
 export type ListAppointmentsQuery = z.output<typeof ListAppointmentsQuerySchema>
 
 // --- Activity log --------------------------------------------------------------------
+
+/** Read-only audit actions (opening a record, lists, downloads): hidden from the log unless asked. */
+export const READ_ACTION_SUFFIXES = ['.view', '.list'] as const
+export const READ_ACTIONS = ['file.download'] as const
+export const isReadAction = (action: string) =>
+  READ_ACTION_SUFFIXES.some((s) => action.endsWith(s)) || (READ_ACTIONS as readonly string[]).includes(action)
 
 export const ActivityQuerySchema = z.object({
   /** Include read-only events (who opened the record, downloaded a file). */
