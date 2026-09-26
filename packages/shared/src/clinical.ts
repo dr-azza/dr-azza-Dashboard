@@ -2,7 +2,7 @@
  * Clinical rules used everywhere a patient answer is judged: the patient's form shows a
  * warning with them, and the API will use the same functions to flag a response.
  */
-import type { L } from './types'
+import type { L } from './types.js'
 
 /** Standard antenatal milestones shown on the pregnancy timeline. */
 export const MILESTONES: { week: number; name: L }[] = [
@@ -26,12 +26,22 @@ export function isHighBloodPressure(systolic?: number | null, diastolic?: number
   return (systolic ?? 0) >= BP_SYSTOLIC_LIMIT || (diastolic ?? 0) >= BP_DIASTOLIC_LIMIT
 }
 
-export function isUrgentCheckin(answer: {
+export interface CheckinVitals {
   symptoms: readonly CheckinSymptom[]
   systolic?: number | null
   diastolic?: number | null
-}) {
-  return (
-    isHighBloodPressure(answer.systolic, answer.diastolic) || answer.symptoms.some((s) => RED_FLAG_SYMPTOMS.includes(s))
-  )
+}
+
+export type CheckinFlag = 'high-bp' | Exclude<CheckinSymptom, 'none'>
+
+/** Every reason a check-in needs clinical attention, in a stable order. Empty means no flags. */
+export function checkinFlags(answer: CheckinVitals): CheckinFlag[] {
+  const flags: CheckinFlag[] = []
+  if (isHighBloodPressure(answer.systolic, answer.diastolic)) flags.push('high-bp')
+  for (const s of RED_FLAG_SYMPTOMS) if (s !== 'none' && answer.symptoms.includes(s)) flags.push(s)
+  return flags
+}
+
+export function isUrgentCheckin(answer: CheckinVitals) {
+  return checkinFlags(answer).length > 0
 }
