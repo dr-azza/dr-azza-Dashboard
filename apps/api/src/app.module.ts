@@ -4,6 +4,7 @@ import { ZodValidationPipe } from 'nestjs-zod'
 import { AuditModule } from './audit/audit.module'
 import { AuditInterceptor } from './audit/audited'
 import { AuthModule } from './auth/auth.module'
+import { CaseTypesModule } from './case-types/case-types.module'
 import { CheckinsModule } from './checkins/checkins.module'
 import { ConfigModule } from './config/config.module'
 import { HealthModule } from './health/health.module'
@@ -18,6 +19,7 @@ import { StorageModule } from './storage/storage.module'
     AuditModule,
     StorageModule,
     AuthModule,
+    CaseTypesModule,
     HealthModule,
     CheckinsModule,
     PatientsModule,

@@ -40,6 +40,7 @@ describe.skipIf(!url)('patient record (integration)', () => {
       data: { clinicId: clinic.id, email, fullName: 'Test Doctor', role: 'DOCTOR', passwordHash: await hash(password) },
     })
     const other = await db.clinic.create({ data: { name: `Other ${run}`, slug: `other-${run}` } })
+    const otherCase = await db.caseType.create({ data: { clinicId: other.id, nameEn: 'Gynecology', nameAr: 'نساء' } })
     otherClinicPatientId = (
       await db.patient.create({
         data: {
@@ -47,7 +48,7 @@ describe.skipIf(!url)('patient record (integration)', () => {
           fileNumber: 'P-0001',
           fullName: 'Other Clinic Patient',
           phone: '+201000000000',
-          caseType: 'GYNECOLOGY',
+          caseTypeId: otherCase.id,
         },
       })
     ).id
@@ -78,12 +79,30 @@ describe.skipIf(!url)('patient record (integration)', () => {
   })
 
   let patientId = ''
+  let pregnancyCaseId = ''
+  let customCaseId = ''
 
-  it('creates a patient with an auto file number, and requires consent', async () => {
+  it('gives every clinic the built-in cases and lets staff add their own', async () => {
+    const list = await call('GET', '/case-types')
+    expect(list.statusCode).toBe(200)
+    const cases = list.json() as { id: string; systemKey: string | null; name: { en: string } }[]
+    expect(cases.map((c) => c.systemKey)).toEqual(['PREGNANCY', 'GYNECOLOGY', 'POSTPARTUM', 'FERTILITY'])
+    pregnancyCaseId = cases[0].id
+
+    const added = await call('POST', '/case-types', { nameEn: 'Menopause', nameAr: 'سن اليأس' })
+    expect(added.statusCode).toBe(201)
+    expect(added.json()).toMatchObject({ name: { en: 'Menopause', ar: 'سن اليأس' }, systemKey: null })
+    customCaseId = added.json().id
+
+    expect((await call('POST', '/case-types', { nameEn: 'Menopause', nameAr: 'x' })).statusCode).toBe(409)
+    expect((await call('PATCH', `/case-types/${pregnancyCaseId}`, { archived: true })).statusCode).toBe(400)
+  })
+
+  it('creates patients with an automatic, sequential file number, and requires consent', async () => {
     const noConsent = await call('POST', '/patients', {
       fullName: 'Sara Test',
       phone: '+20 100 000 1111',
-      caseType: 'PREGNANCY',
+      caseTypeId: pregnancyCaseId,
       consentGiven: false,
     })
     expect(noConsent.statusCode).toBe(400)
@@ -93,14 +112,44 @@ describe.skipIf(!url)('patient record (integration)', () => {
       fullNameAr: 'سارة',
       phone: '+20 100 000 1111',
       dateOfBirth: '1994-05-01',
-      caseType: 'PREGNANCY',
+      caseTypeId: pregnancyCaseId,
       consentGiven: true,
+      fileNumber: 'HACK-1', // ignored: file numbers can't be chosen by the client
     })
     expect(res.statusCode).toBe(201)
     const body = res.json()
     expect(body.fileNumber).toBe('P-0001')
     expect(body.phone).toBe('+201000001111')
+    expect(body.caseType).toMatchObject({ id: pregnancyCaseId, systemKey: 'PREGNANCY' })
     patientId = body.id
+
+    const second = await call('POST', '/patients', {
+      fullName: 'Mona Test',
+      phone: '+201000002222',
+      caseTypeId: customCaseId,
+      consentGiven: true,
+    })
+    expect(second.json().fileNumber).toBe('P-0002')
+  })
+
+  it('filters the patient list by any case, including custom ones', async () => {
+    const custom = (await call('GET', `/patients?caseTypeId=${customCaseId}`)).json()
+    expect(custom.items.map((p: { fullName: string }) => p.fullName)).toEqual(['Mona Test'])
+    const counts = (await call('GET', '/case-types')).json() as { id: string; patientCount: number }[]
+    expect(counts.find((c) => c.id === customCaseId)?.patientCount).toBe(1)
+  })
+
+  it('refuses a case that belongs to another clinic', async () => {
+    const otherCase = await db.caseType.findFirstOrThrow({
+      where: { patients: { some: { id: otherClinicPatientId } } },
+    })
+    const res = await call('POST', '/patients', {
+      fullName: 'Wrong Clinic',
+      phone: '+201000003333',
+      caseTypeId: otherCase.id,
+      consentGiven: true,
+    })
+    expect(res.statusCode).toBe(400)
   })
 
   it('never exposes another clinic’s patient', async () => {

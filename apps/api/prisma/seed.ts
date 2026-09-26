@@ -99,11 +99,22 @@ async function main() {
     },
   ]
 
-  for (const { pregnancy, ...data } of patients) {
+  // Built-in cases (same list as the API's DEFAULT_CASE_TYPES and the case_types migration).
+  const defaults = [
+    { systemKey: 'PREGNANCY', nameEn: 'Pregnancy', nameAr: 'حمل', sortOrder: 10 },
+    { systemKey: 'GYNECOLOGY', nameEn: 'Gynecology', nameAr: 'أمراض نساء', sortOrder: 20 },
+    { systemKey: 'POSTPARTUM', nameEn: 'Postpartum', nameAr: 'بعد الولادة', sortOrder: 30 },
+    { systemKey: 'FERTILITY', nameEn: 'Fertility', nameAr: 'خصوبة', sortOrder: 40 },
+  ]
+  await prisma.caseType.createMany({ data: defaults.map((c) => ({ ...c, clinicId: clinic.id })), skipDuplicates: true })
+  const cases = await prisma.caseType.findMany({ where: { clinicId: clinic.id, systemKey: { not: null } } })
+  const caseId = (key: string) => cases.find((c) => c.systemKey === key)!.id
+
+  for (const { pregnancy, caseType, ...data } of patients) {
     const patient = await prisma.patient.upsert({
       where: { clinicId_fileNumber: { clinicId: clinic.id, fileNumber: data.fileNumber } },
       update: {},
-      create: { ...data, clinicId: clinic.id, consentAt: new Date() },
+      create: { ...data, caseTypeId: caseId(caseType), clinicId: clinic.id, consentAt: new Date() },
     })
     if (pregnancy && (await prisma.pregnancy.count({ where: { patientId: patient.id } })) === 0) {
       const { gaDays, ...details } = pregnancy

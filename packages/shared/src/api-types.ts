@@ -6,14 +6,28 @@ import type {
   ALLERGY_SEVERITIES,
   ATTACHMENT_KINDS,
   BLOOD_GROUPS,
-  CASE_TYPES,
   DELIVERY_MODES,
   PATIENT_STATUSES,
   PAYMENT_METHODS,
   PREGNANCY_OUTCOMES,
+  SYSTEM_CASE_KEYS,
 } from './schemas/patient-record.js'
 
-export type CaseTypeCode = (typeof CASE_TYPES)[number]
+export type SystemCaseKey = (typeof SYSTEM_CASE_KEYS)[number]
+
+/** A case as shown on a patient: enough to label and filter. */
+export interface CaseTypeRefDto {
+  id: string
+  name: { en: string; ar: string }
+  systemKey: SystemCaseKey | null
+}
+
+export interface CaseTypeDto extends CaseTypeRefDto {
+  sortOrder: number
+  archived: boolean
+  /** Active (non-archived) patients currently in this case. */
+  patientCount: number
+}
 export type PatientStatusCode = (typeof PATIENT_STATUSES)[number]
 export type PaymentMethodCode = (typeof PAYMENT_METHODS)[number]
 export type AttachmentKindCode = (typeof ATTACHMENT_KINDS)[number]
@@ -55,7 +69,7 @@ export interface PatientListItemDto {
   fullNameAr: string | null
   phone: string
   age: number | null
-  caseType: CaseTypeCode
+  caseType: CaseTypeRefDto
   status: PatientStatusCode
   activePregnancy: ActivePregnancyDto | null
   lastVisitAt: string | null

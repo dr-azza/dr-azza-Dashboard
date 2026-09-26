@@ -22,6 +22,7 @@ import {
 } from '../common/format'
 import { Prisma } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
+import { CaseTypesService, toCaseTypeRef } from '../case-types/case-types.service'
 import { PatientScope, pregnancyFacts } from './patient-scope.service'
 
 const LIST_SELECT = {
@@ -31,7 +32,7 @@ const LIST_SELECT = {
   fullNameAr: true,
   phone: true,
   dateOfBirth: true,
-  caseType: true,
+  caseType: { select: { id: true, nameEn: true, nameAr: true, systemKey: true } },
   status: true,
   pregnancies: {
     where: { status: 'ACTIVE' },
@@ -54,7 +55,7 @@ function toListItem(p: ListRow): PatientListItemDto {
     fullNameAr: p.fullNameAr,
     phone: p.phone,
     age: ageFrom(p.dateOfBirth),
-    caseType: p.caseType,
+    caseType: toCaseTypeRef(p.caseType),
     status: p.status,
     activePregnancy:
       pregnancy && facts
@@ -89,6 +90,7 @@ export class PatientsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: PatientScope,
+    private readonly caseTypes: CaseTypesService,
   ) {}
 
   async list(staff: AuthStaff, query: ListPatientsQuery): Promise<Page<PatientListItemDto>> {
@@ -100,7 +102,7 @@ export class PatientsService {
     const where: Prisma.PatientWhereInput = {
       clinicId: staff.clinicId,
       archivedAt: null,
-      ...(query.caseType && { caseType: query.caseType }),
+      ...(query.caseTypeId && { caseTypeId: query.caseTypeId }),
       ...(query.status && { status: query.status }),
       ...(q && {
         OR: [
@@ -125,29 +127,29 @@ export class PatientsService {
     return { items: page.map(toListItem), nextCursor: rows.length > limit ? encodeCursor(page[page.length - 1]) : null }
   }
 
+  /** File numbers are always assigned by the clinic, never typed, so they stay unique and sequential. */
   async create(staff: AuthStaff, input: CreatePatientInput) {
-    for (let attempt = 0; attempt < 3; attempt++) {
-      const fileNumber = input.fileNumber?.trim() || (await this.nextFileNumber(staff.clinicId))
+    const caseType = await this.caseTypes.requireAssignable(staff, input.caseTypeId)
+    for (let attempt = 0; attempt < 5; attempt++) {
       try {
         const patient = await this.prisma.patient.create({
           data: {
             clinicId: staff.clinicId,
-            fileNumber,
+            fileNumber: await this.nextFileNumber(staff.clinicId),
             fullName: input.fullName.trim(),
             fullNameAr: input.fullNameAr?.trim() || null,
             phone: input.phone,
             dateOfBirth: fromIsoDayOrNull(input.dateOfBirth),
-            caseType: input.caseType,
+            caseTypeId: caseType.id,
             consentAt: new Date(),
           },
           select: { id: true },
         })
         return this.get(staff, patient.id)
       } catch (error) {
+        // Two receptionists saving at the same moment get the same next number; the loser retries.
         const duplicate = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002'
         if (!duplicate) throw error
-        // A supplied number is a real conflict; a generated one lost a race, so try the next.
-        if (input.fileNumber) throw new ConflictException(`File number ${input.fileNumber} is already in use`)
       }
     }
     throw new ConflictException('Could not assign a file number, please retry')
@@ -203,6 +205,9 @@ export class PatientsService {
 
   async update(staff: AuthStaff, patientId: string, input: UpdatePatientInput) {
     await this.scope.require(staff, patientId)
+    const caseTypeId = input.caseTypeId
+      ? (await this.caseTypes.requireAssignable(staff, input.caseTypeId)).id
+      : undefined
     await this.prisma.patient.update({
       where: { id: patientId },
       data: {
@@ -210,7 +215,7 @@ export class PatientsService {
         ...(input.fullNameAr !== undefined && { fullNameAr: input.fullNameAr?.trim() || null }),
         ...(input.phone !== undefined && { phone: input.phone }),
         ...(input.dateOfBirth !== undefined && { dateOfBirth: fromIsoDayOrNull(input.dateOfBirth) }),
-        ...(input.caseType !== undefined && { caseType: input.caseType }),
+        ...(caseTypeId && { caseTypeId }),
         ...(input.status !== undefined && { status: input.status }),
       },
     })
