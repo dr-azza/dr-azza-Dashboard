@@ -3,7 +3,8 @@ import { Card } from '@/components/app/ui'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { SidePanel } from '@/components/app/side-panel'
-import { Field, FieldGroup, Label } from '@/components/catalyst/fieldset'
+import { Field, FieldGroup, Fieldset, Label, Legend } from '@/components/catalyst/fieldset'
+import { Subheading } from '@/components/catalyst/heading'
 import { Input } from '@/components/catalyst/input'
 import { Text } from '@/components/catalyst/text'
 import { Textarea } from '@/components/catalyst/textarea'
@@ -184,7 +185,7 @@ function NewPrescriptionDialog({ patient, onClose }: { patient: PatientDto; onCl
       }
     >
       {patient.allergies.length > 0 && (
-        <p className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm/6 font-semibold text-red-800 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900">
+        <p className="mb-6 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm/6 font-semibold text-red-800 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900">
           <ExclamationTriangleIcon className="size-4 shrink-0" />
           {t('record.allergyAlert', { list: patient.allergies.map((a) => a.substance).join(', ') })}
         </p>
@@ -196,8 +197,9 @@ function NewPrescriptionDialog({ patient, onClose }: { patient: PatientDto; onCl
             <Label>{t('record.rx.diagnosis')}</Label>
             <Input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
           </Field>
-          <div className="space-y-3">
-            <Label>{t('record.rx.medicines')}</Label>
+          {/* A group of inputs, so it gets a fieldset legend rather than a field label. */}
+          <Fieldset className="space-y-3">
+            <Legend>{t('record.rx.medicines')}</Legend>
             {items.map((item, i) => (
               <div key={i} className="space-y-2 rounded-lg bg-zinc-50 p-3 dark:bg-white/5">
                 <div className="flex gap-2">
@@ -247,7 +249,7 @@ function NewPrescriptionDialog({ patient, onClose }: { patient: PatientDto; onCl
               <PlusIcon />
               {t('record.rx.addMedicine')}
             </Button>
-          </div>
+          </Fieldset>
           <Field>
             <Label>{t('record.rx.notes')}</Label>
             <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
@@ -255,7 +257,7 @@ function NewPrescriptionDialog({ patient, onClose }: { patient: PatientDto; onCl
         </FieldGroup>
 
         <aside className="space-y-2">
-          <Label>{t('record.rx.quickPick')}</Label>
+          <Subheading level={3}>{t('record.rx.quickPick')}</Subheading>
           <Input
             type="search"
             aria-label={t('common.search')}
