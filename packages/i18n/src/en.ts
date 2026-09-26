@@ -211,6 +211,14 @@ export const en = {
   settings: {
     title: 'Settings',
   },
+  errors: {
+    title: 'Something went wrong on this screen',
+    body: 'Your data is safe. Reload the page, or go back and try again. If it keeps happening, tell the clinic administrator.',
+    notFoundTitle: 'Page not found',
+    notFoundBody: 'This link does not match any page.',
+    back: 'Go back',
+    reload: 'Reload',
+  },
   auth: {
     title: 'Sign in to AZZAH',
     subtitle: 'Clinic staff only. Patient records are private.',

@@ -2,6 +2,7 @@ import '@/i18n'
 import '@/lib/theme'
 import '@/styles/tailwind.css'
 
+import { RouteError } from '@/components/app/route-error'
 import { ApiError } from '@/lib/api'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
@@ -25,6 +26,7 @@ const router = createBrowserRouter([
   {
     lazy: () => import('@/layouts/app-layout').then((m) => ({ Component: m.AppLayout })),
     hydrateFallbackElement: <div />,
+    errorElement: <RouteError />,
     children: [
       { path: '/', lazy: () => import('@/pages/overview').then((m) => ({ Component: m.OverviewPage })) },
       { path: '/patients', lazy: () => import('@/pages/patients').then((m) => ({ Component: m.PatientsPage })) },
@@ -45,17 +47,28 @@ const router = createBrowserRouter([
   {
     path: '/login',
     hydrateFallbackElement: <div />,
+    errorElement: <RouteError />,
     lazy: () => import('@/pages/login').then((m) => ({ Component: m.LoginPage })),
   },
   {
     path: '/print/prescription/:patientId/:prescriptionId',
     hydrateFallbackElement: <div />,
+    errorElement: <RouteError />,
     lazy: () => import('@/pages/patient/prescription-print').then((m) => ({ Component: m.PrescriptionPrintPage })),
+  },
+  // Unknown URLs get the same friendly screen as a 404.
+  {
+    path: '*',
+    errorElement: <RouteError />,
+    loader: () => {
+      throw new Response('Not found', { status: 404 })
+    },
   },
   // Patient-facing form opened from a WhatsApp/SMS link: no staff layout, no login.
   {
     path: '/f/:token',
     hydrateFallbackElement: <div />,
+    errorElement: <RouteError />,
     lazy: () => import('@/pages/public-form').then((m) => ({ Component: m.PublicFormPage })),
   },
 ])
