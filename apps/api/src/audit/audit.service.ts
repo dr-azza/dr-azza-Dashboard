@@ -9,6 +9,7 @@ export interface AuditEntry {
   action: string
   entity: string
   entityId?: string | null
+  patientId?: string | null
   ip?: string | null
   meta?: Prisma.InputJsonValue
 }

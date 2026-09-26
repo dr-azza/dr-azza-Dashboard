@@ -1,5 +1,9 @@
 import type {
+  ActivityDto,
+  AppointmentDto,
+  AppointmentRangeDto,
   AttachmentDto,
+  CreateAppointmentInput,
   AttachmentKindCode,
   CaseTypeDto,
   CreateCaseTypeInput,
@@ -24,12 +28,21 @@ import type {
   PaymentsDto,
   PregnancyDto,
   PrescriptionDto,
+  StaffListItemDto,
   TimelineEventDto,
+  UpdateAppointmentInput,
   UpdateCaseTypeInput,
   UpdatePatientInput,
   VisitDto,
 } from '@azza/shared'
-import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import {
+  keepPreviousData,
+  type QueryKey,
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from '@tanstack/react-query'
 import { api } from './api'
 
 /** Query keys in one place, so invalidation after a change is exact. */
@@ -137,6 +150,7 @@ export function useUpdatePatient(id: string) {
     mutationFn: (input: UpdatePatientInput) => api<PatientDto>(`/patients/${id}`, { method: 'PATCH', body: input }),
     onSuccess: (data) => {
       qc.setQueryData(keys.patient(id), data)
+      void qc.invalidateQueries({ queryKey: keys.part(id, 'activity') })
       void qc.invalidateQueries({ queryKey: ['patients'] })
       void qc.invalidateQueries({ queryKey: ['case-types'] })
     },
@@ -171,7 +185,7 @@ function usePatientMutation<TInput, TResult>(
   id: string,
   parts: string[],
   fn: (input: TInput) => Promise<TResult>,
-  { listsToo = false } = {},
+  { listsToo = false, alsoInvalidate = [] as QueryKey[] } = {},
 ) {
   const qc = useQueryClient()
   return useMutation({
@@ -180,10 +194,13 @@ function usePatientMutation<TInput, TResult>(
       Promise.all([
         qc.invalidateQueries({ queryKey: keys.patient(id), exact: true }),
         qc.invalidateQueries({ queryKey: keys.part(id, 'timeline') }),
+        // Every change lands in the activity log (both the changes-only and with-views variants).
+        qc.invalidateQueries({ queryKey: keys.part(id, 'activity') }),
         ...parts.map((p) => qc.invalidateQueries({ queryKey: keys.part(id, p) })),
         ...(listsToo
           ? [qc.invalidateQueries({ queryKey: ['patients'] }), qc.invalidateQueries({ queryKey: ['case-types'] })]
           : []),
+        ...alsoInvalidate.map((queryKey) => qc.invalidateQueries({ queryKey })),
       ]),
   })
 }
@@ -272,3 +289,51 @@ export const useDeleteAttachment = (id: string) =>
 
 export const useAddNote = (id: string) =>
   usePatientMutation(id, ['notes'], (input: CreateNoteInput) => api<NoteDto>(`/patients/${id}/notes`, { body: input }))
+
+// --- Staff, appointments and activity ---------------------------------------------
+
+export const useStaff = () =>
+  useQuery({ queryKey: ['staff'], queryFn: () => api<StaffListItemDto[]>('/staff'), staleTime: 5 * 60_000 })
+
+export const usePatientAppointments = (id: string) =>
+  useQuery(part<{ upcoming: AppointmentDto[]; past: AppointmentDto[] }>(id, 'appointments', '/appointments'))
+
+/** The clinic calendar between two instants (the Appointments page). */
+export const useClinicAppointments = (from: string, to: string, assignedToId?: string) =>
+  useQuery({
+    queryKey: ['appointments', { from, to, assignedToId }],
+    queryFn: () =>
+      api<AppointmentRangeDto>(
+        `/appointments?${new URLSearchParams({ from, to, ...(assignedToId && { assignedToId }) })}`,
+      ),
+  })
+
+export const useCreateAppointment = (id: string) =>
+  usePatientMutation(
+    id,
+    ['appointments'],
+    (input: CreateAppointmentInput) => api<AppointmentDto>(`/patients/${id}/appointments`, { body: input }),
+    { alsoInvalidate: [['appointments']] },
+  )
+
+export const useUpdateAppointment = (id: string) =>
+  usePatientMutation(
+    id,
+    ['appointments'],
+    ({ appointmentId, ...input }: UpdateAppointmentInput & { appointmentId: string }) =>
+      api<AppointmentDto>(`/patients/${id}/appointments/${appointmentId}`, { method: 'PATCH', body: input }),
+    { alsoInvalidate: [['appointments']] },
+  )
+
+export function useActivity(id: string, includeViews: boolean) {
+  return useInfiniteQuery({
+    queryKey: [...keys.part(id, 'activity'), { includeViews }],
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ includeViews: String(includeViews), limit: '50' })
+      if (pageParam) params.set('cursor', pageParam)
+      return api<Page<ActivityDto>>(`/patients/${id}/activity?${params}`)
+    },
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  })
+}

@@ -4,6 +4,8 @@
  */
 import type {
   ALLERGY_SEVERITIES,
+  APPOINTMENT_STATUSES,
+  APPOINTMENT_TYPES,
   ATTACHMENT_KINDS,
   BLOOD_GROUPS,
   DELIVERY_MODES,
@@ -35,6 +37,8 @@ export type PregnancyOutcomeCode = (typeof PREGNANCY_OUTCOMES)[number]
 export type DeliveryModeCode = (typeof DELIVERY_MODES)[number]
 export type BloodGroup = (typeof BLOOD_GROUPS)[number]
 export type StaffRoleCode = 'OWNER' | 'DOCTOR' | 'NURSE' | 'RECEPTION'
+export type AppointmentTypeCode = (typeof APPOINTMENT_TYPES)[number]
+export type AppointmentStatusCode = (typeof APPOINTMENT_STATUSES)[number]
 
 export interface StaffRef {
   id: string
@@ -84,6 +88,8 @@ export interface PatientDto extends PatientListItemDto {
   gravida: number
   para: number
   totals: { visits: number; prescriptions: number; files: number; paid: string }
+  /** The next scheduled appointment from now, if any. */
+  nextAppointment: { id: string; type: AppointmentTypeCode; title: string | null; startsAt: string } | null
 }
 
 export interface MedicalHistoryDto {
@@ -229,6 +235,46 @@ export interface TimelineEventDto {
   currency?: string
   by: StaffRef | null
   flag?: 'warning' | 'voided'
+}
+
+export interface StaffListItemDto extends StaffRef {
+  role: StaffRoleCode
+}
+
+export interface AppointmentDto {
+  id: string
+  patient: { id: string; fullName: string; fullNameAr: string | null; fileNumber: string }
+  type: AppointmentTypeCode
+  title: string | null
+  startsAt: string
+  endsAt: string
+  durationMinutes: number
+  status: AppointmentStatusCode
+  notes: string | null
+  cancelReason: string | null
+  assignedTo: StaffRef | null
+  createdBy: StaffRef | null
+  closedAt: string | null
+  createdAt: string
+}
+
+/** One entry of a patient's activity log (from the audit trail): who did what, when. */
+/** A calendar range; `truncated` means more appointments matched than the limit returned. */
+export interface AppointmentRangeDto {
+  items: AppointmentDto[]
+  truncated: boolean
+}
+
+export interface ActivityDto {
+  id: string
+  at: string
+  /** Dotted action code, e.g. "prescription.create"; clients turn it into words. */
+  action: string
+  entity: string
+  entityId: string | null
+  actor: StaffRef | null
+  /** For appointment entries: what was booked, as it stands now (so the log can say which one). */
+  appointment: { type: AppointmentTypeCode; title: string | null; startsAt: string } | null
 }
 
 export interface ApiErrorDto {

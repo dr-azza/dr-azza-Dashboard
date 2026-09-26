@@ -262,7 +262,7 @@ describe.skipIf(!url)('patient record (integration)', () => {
 
   it('writes an audit entry for reads and changes', async () => {
     const actions = await db.auditLog.findMany({
-      where: { meta: { path: ['patientId'], equals: patientId } },
+      where: { patientId },
       select: { action: true },
     })
     const names = new Set(actions.map((a) => a.action))
@@ -312,6 +312,122 @@ describe.skipIf(!url)('patient record (integration)', () => {
     const cases = list.json() as { id: string; systemKey: string | null }[]
     expect(cases.filter((c) => c.systemKey)).toHaveLength(4)
     expect(cases.find((c) => c.systemKey === 'PREGNANCY')?.id).toBe(custom.id)
+  })
+
+  it('books, reschedules and closes appointments, and shows the next one on the record', async () => {
+    const staffList = (await call('GET', '/staff')).json() as { id: string; fullName: string }[]
+    expect(staffList.map((m) => m.fullName)).toContain('Test Doctor')
+    const doctorId = staffList.find((m) => m.fullName === 'Test Doctor')!.id
+
+    const inTwoDays = new Date(Date.now() + 2 * 86_400_000).toISOString()
+    const call1 = await call('POST', `/patients/${patientId}/appointments`, {
+      type: 'CALL',
+      title: 'Discuss BP readings',
+      startsAt: inTwoDays,
+      durationMinutes: 10,
+      assignedToId: doctorId,
+    })
+    expect(call1.statusCode).toBe(201)
+    expect(call1.json()).toMatchObject({
+      type: 'CALL',
+      status: 'SCHEDULED',
+      durationMinutes: 10,
+      assignedTo: { id: doctorId },
+    })
+
+    // Only staff of the same clinic can be assigned.
+    const otherClinicStaff = await db.staffMember.findFirstOrThrow({
+      where: { clinicId: { not: (await db.patient.findUniqueOrThrow({ where: { id: patientId } })).clinicId } },
+    })
+    const bad = await call('POST', `/patients/${patientId}/appointments`, {
+      type: 'VISIT',
+      startsAt: inTwoDays,
+      assignedToId: otherClinicStaff.id,
+    })
+    expect(bad.statusCode).toBe(400)
+
+    const record = (await call('GET', `/patients/${patientId}`)).json()
+    expect(record.nextAppointment).toMatchObject({ id: call1.json().id, type: 'CALL' })
+
+    const inFiveDays = new Date(Date.now() + 5 * 86_400_000).toISOString()
+    const moved = await call('PATCH', `/patients/${patientId}/appointments/${call1.json().id}`, {
+      startsAt: inFiveDays,
+    })
+    expect(moved.json().startsAt).toBe(inFiveDays)
+
+    const cancelled = await call('PATCH', `/patients/${patientId}/appointments/${call1.json().id}`, {
+      status: 'CANCELLED',
+      cancelReason: 'Patient travelling',
+    })
+    expect(cancelled.json()).toMatchObject({ status: 'CANCELLED', cancelReason: 'Patient travelling' })
+    expect(cancelled.json().closedAt).not.toBeNull()
+
+    const list = (await call('GET', `/patients/${patientId}/appointments`)).json()
+    expect(list.upcoming).toHaveLength(0)
+    expect(list.past[0]).toMatchObject({ id: call1.json().id, status: 'CANCELLED' })
+    expect((await call('GET', `/patients/${patientId}`)).json().nextAppointment).toBeNull()
+
+    const calendar = (await call('GET', `/appointments?from=${encodeURIComponent(new Date().toISOString())}`)).json()
+    expect(calendar.items.map((a: { id: string }) => a.id)).toContain(call1.json().id)
+    expect(calendar.truncated).toBe(false)
+  })
+
+  it('keeps an appointment that is under way as current until its slot ends', async () => {
+    const started = await call('POST', `/patients/${patientId}/appointments`, {
+      type: 'VISIT',
+      startsAt: new Date(Date.now() - 10 * 60_000).toISOString(),
+      durationMinutes: 30,
+    })
+    const ended = await call('POST', `/patients/${patientId}/appointments`, {
+      type: 'CALL',
+      startsAt: new Date(Date.now() - 60 * 60_000).toISOString(),
+      durationMinutes: 15,
+    })
+    const list = (await call('GET', `/patients/${patientId}/appointments`)).json()
+    expect(list.upcoming[0].id).toBe(started.json().id)
+    expect(list.past.map((a: { id: string }) => a.id)).toContain(ended.json().id)
+    expect((await call('GET', `/patients/${patientId}`)).json().nextAppointment.id).toBe(started.json().id)
+
+    // The calendar says when it was cut short rather than silently dropping the rest.
+    const capped = (await call('GET', '/appointments?limit=1')).json()
+    expect(capped.items).toHaveLength(1)
+    expect(capped.truncated).toBe(true)
+  })
+
+  it('keeps an activity log of every change on the patient, with views on request', async () => {
+    const log = (await call('GET', `/patients/${patientId}/activity`)).json() as {
+      items: { action: string; actor: { fullName: string } | null; appointment: { type: string } | null }[]
+    }
+    const actions = log.items.map((i) => i.action)
+    // Appointment entries say which appointment; others carry no appointment.
+    expect(log.items.find((i) => i.action === 'appointment.create')?.appointment?.type).toBeTruthy()
+    expect(log.items.find((i) => i.action === 'patient.create')?.appointment).toBeNull()
+    for (const expected of [
+      'patient.create',
+      'visit.create',
+      'prescription.create',
+      'prescription.void',
+      'payment.create',
+      'payment.void',
+      'file.upload',
+      'appointment.create',
+      'appointment.update',
+    ]) {
+      expect(actions).toContain(expected)
+    }
+    expect(actions.some((a) => a.endsWith('.view') || a.endsWith('.list') || a === 'file.download')).toBe(false)
+    expect(log.items[0].actor?.fullName).toBe('Test Doctor')
+
+    const withViews = (await call('GET', `/patients/${patientId}/activity?includeViews=true`)).json() as {
+      items: { action: string }[]
+    }
+    expect(withViews.items.map((i) => i.action)).toContain('patient.view')
+
+    const page1 = (await call('GET', `/patients/${patientId}/activity?limit=3`)).json()
+    const page2 = (await call('GET', `/patients/${patientId}/activity?limit=3&cursor=${page1.nextCursor}`)).json()
+    expect(page1.items).toHaveLength(3)
+    expect(page2.items[0].id).not.toBe(page1.items[2].id)
+    expect(Number(page2.items[0].id)).toBeLessThan(Number(page1.items[2].id))
   })
 
   it('invalidates the session on logout', async () => {
