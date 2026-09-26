@@ -1,7 +1,8 @@
 import type {
   AttachmentDto,
   AttachmentKindCode,
-  CaseTypeCode,
+  CaseTypeDto,
+  CreateCaseTypeInput,
   CreateNoteInput,
   CreatePatientInput,
   CreatePaymentInput,
@@ -24,6 +25,7 @@ import type {
   PregnancyDto,
   PrescriptionDto,
   TimelineEventDto,
+  UpdateCaseTypeInput,
   UpdatePatientInput,
   VisitDto,
 } from '@azza/shared'
@@ -61,9 +63,38 @@ export function useLogout() {
 
 // --- Patients -----------------------------------------------------------------
 
+// --- Case types ---------------------------------------------------------------
+
+export const useCaseTypes = (includeArchived = false) =>
+  useQuery({
+    queryKey: ['case-types', { includeArchived }],
+    queryFn: () => api<CaseTypeDto[]>(`/case-types${includeArchived ? '?includeArchived=true' : ''}`),
+    staleTime: 60_000,
+  })
+
+function useCaseTypeMutation<TInput>(fn: (input: TInput) => Promise<CaseTypeDto>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['case-types'] }),
+        qc.invalidateQueries({ queryKey: ['patients'] }),
+      ]),
+  })
+}
+
+export const useCreateCaseType = () =>
+  useCaseTypeMutation((input: CreateCaseTypeInput) => api<CaseTypeDto>('/case-types', { body: input }))
+
+export const useUpdateCaseType = () =>
+  useCaseTypeMutation(({ id, ...input }: UpdateCaseTypeInput & { id: string }) =>
+    api<CaseTypeDto>(`/case-types/${id}`, { method: 'PATCH', body: input }),
+  )
+
 export interface PatientFilters {
   q?: string
-  caseType?: CaseTypeCode
+  caseTypeId?: string
   status?: PatientStatusCode
 }
 
@@ -74,7 +105,7 @@ export function usePatients(filters: PatientFilters) {
     queryFn: ({ pageParam, signal }) => {
       const params = new URLSearchParams({ limit: '25' })
       if (filters.q) params.set('q', filters.q)
-      if (filters.caseType) params.set('caseType', filters.caseType)
+      if (filters.caseTypeId) params.set('caseTypeId', filters.caseTypeId)
       if (filters.status) params.set('status', filters.status)
       if (pageParam) params.set('cursor', pageParam)
       return api<Page<PatientListItemDto>>(`/patients?${params}`, { signal })
@@ -91,7 +122,11 @@ export function useCreatePatient() {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: (input: CreatePatientInput) => api<PatientDto>('/patients', { body: input }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['patients'] }),
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['patients'] }),
+        qc.invalidateQueries({ queryKey: ['case-types'] }),
+      ]),
   })
 }
 

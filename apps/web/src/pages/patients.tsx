@@ -6,11 +6,11 @@ import { Input, InputGroup } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
-import { caseKey, statusKey, statusTone } from '@/components/patient/labels'
-import { NewPatientDialog } from '@/components/patient/new-patient-dialog'
+import { statusKey, statusTone } from '@/components/patient/labels'
+import { NewPatientPanel } from '@/components/patient/new-patient-panel'
 import { useLang } from '@/i18n'
-import { usePatients } from '@/lib/queries'
-import { CASE_TYPES, type CaseTypeCode, PATIENT_STATUSES, type PatientStatusCode } from '@azza/shared'
+import { useCaseTypes, usePatients } from '@/lib/queries'
+import { PATIENT_STATUSES, type PatientStatusCode } from '@azza/shared'
 import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useEffect, useState } from 'react'
@@ -27,12 +27,13 @@ function useDebounced<T>(value: T, ms = 300) {
 }
 
 export function PatientsPage() {
-  const { t } = useLang()
+  const { t, l } = useLang()
   const fmt = useFormat()
+  const cases = useCaseTypes()
   const [params, setParams] = useSearchParams()
   const [newOpen, setNewOpen] = useState(false)
   const [q, setQ] = useState(params.get('q') ?? '')
-  const caseType = (params.get('case') ?? undefined) as CaseTypeCode | undefined
+  const caseTypeId = params.get('case') ?? undefined
   const status = (params.get('status') ?? undefined) as PatientStatusCode | undefined
   const query = useDebounced(q.trim())
 
@@ -50,7 +51,7 @@ export function PatientsPage() {
   // Keep the search in the URL so it survives reloads and can be shared.
   useEffect(() => update('q', query || undefined), [query]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const patients = usePatients({ q: query || undefined, caseType, status })
+  const patients = usePatients({ q: query || undefined, caseTypeId, status })
   const rows = patients.data?.pages.flatMap((p) => p.items) ?? []
 
   return (
@@ -78,20 +79,25 @@ export function PatientsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {([undefined, ...CASE_TYPES] as (CaseTypeCode | undefined)[]).map((c) => (
+        {/* Filters come from the clinic's own cases, including ones added in Settings or while adding a patient. */}
+        {[
+          { id: undefined, label: t('patients.all'), count: undefined as number | undefined },
+          ...(cases.data ?? []).map((c) => ({ id: c.id, label: l(c.name), count: c.patientCount })),
+        ].map((c) => (
           <button
-            key={c ?? 'all'}
+            key={c.id ?? 'all'}
             type="button"
-            aria-pressed={caseType === c}
-            onClick={() => update('case', c)}
+            aria-pressed={caseTypeId === c.id}
+            onClick={() => update('case', c.id)}
             className={clsx(
               'rounded-full px-3.5 py-1.5 text-sm/6 font-medium ring-1 transition-colors',
-              caseType === c
+              caseTypeId === c.id
                 ? 'bg-brand-600 text-white ring-brand-600'
                 : 'bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-white/10',
             )}
           >
-            {c ? t(caseKey(c)) : t('patients.all')}
+            {c.label}
+            {c.count !== undefined && <span className="ms-1.5 tabular-nums opacity-70">{c.count}</span>}
           </button>
         ))}
         <div className="ms-auto w-48">
@@ -149,7 +155,7 @@ export function PatientsPage() {
               <TableCell className="text-zinc-500 tabular-nums max-lg:hidden" dir="ltr">
                 {formatPhone(p.phone)}
               </TableCell>
-              <TableCell>{t(caseKey(p.caseType))}</TableCell>
+              <TableCell>{l(p.caseType.name)}</TableCell>
               <TableCell className="font-medium tabular-nums">
                 {p.activePregnancy ? t('common.ga', { w: p.activePregnancy.weeks, d: p.activePregnancy.days }) : '—'}
               </TableCell>
@@ -173,7 +179,7 @@ export function PatientsPage() {
         </div>
       )}
 
-      <NewPatientDialog open={newOpen} onClose={() => setNewOpen(false)} />
+      <NewPatientPanel open={newOpen} onClose={() => setNewOpen(false)} />
     </div>
   )
 }

@@ -1,8 +1,6 @@
-import type { Tone } from '@azza/shared'
-import type { CaseTypeCode, PatientStatusCode } from '@azza/shared'
+import type { PatientStatusCode, Tone } from '@azza/shared'
 
-/** API enum codes → i18n keys (the dashboard's earlier sample data used lowercase keys). */
-export const caseKey = (code: CaseTypeCode) => `case.${code.toLowerCase()}`
+/** API status codes → i18n keys. */
 export const statusKey = (code: PatientStatusCode) => `status.${code.toLowerCase()}`
 
 export const statusTone: Record<PatientStatusCode, Tone> = {

@@ -6,14 +6,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Text } from '@/components/catalyst/text'
 import { statusKey, statusTone } from '@/components/patient/labels'
 import { useLang } from '@/i18n'
-import { usePatients } from '@/lib/queries'
+import { useCaseTypes, usePatients } from '@/lib/queries'
 import { addDays, MILESTONES, parseDay, weekPercent } from '@azza/shared'
 
 /** All active pregnancies, sorted by due date, with the next antenatal milestone for each. */
 export function PregnancyPage() {
   const { t, l, formatDate } = useLang()
   const fmt = useFormat()
-  const patients = usePatients({ caseType: 'PREGNANCY' })
+  const pregnancyCase = useCaseTypes().data?.find((c) => c.systemKey === 'PREGNANCY')
+  const patients = usePatients({ caseTypeId: pregnancyCase?.id })
   const rows = (patients.data?.pages.flatMap((p) => p.items) ?? [])
     .filter((p) => p.activePregnancy)
     .sort((a, b) => a.activePregnancy!.edd.localeCompare(b.activePregnancy!.edd))

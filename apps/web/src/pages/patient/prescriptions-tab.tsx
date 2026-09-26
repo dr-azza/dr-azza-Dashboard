@@ -2,7 +2,7 @@ import { RequestError, useFormat } from '@/components/app/form'
 import { Card } from '@/components/app/ui'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
+import { SidePanel } from '@/components/app/side-panel'
 import { Field, FieldGroup, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Text } from '@/components/catalyst/text'
@@ -92,35 +92,36 @@ function PrescriptionCard({ patientId, rx }: { patientId: string; rx: Prescripti
       {rx.notes && <p className="mt-3 text-sm/6 text-zinc-600 dark:text-zinc-400">{rx.notes}</p>}
       {voided && rx.voidReason && <p className="mt-3 text-xs/5 text-zinc-500">{rx.voidReason}</p>}
 
-      <Dialog open={voidOpen} onClose={setVoidOpen} size="md">
-        <form
-          onSubmit={async (event) => {
-            event.preventDefault()
-            const reason = String(new FormData(event.currentTarget).get('reason') ?? '').trim()
-            if (!reason) return
-            await voidRx.mutateAsync({ prescriptionId: rx.id, reason })
-            setVoidOpen(false)
-          }}
-        >
-          <DialogTitle>{t('record.rx.voidTitle')}</DialogTitle>
-          <DialogDescription>{t('record.rx.voidHint')}</DialogDescription>
-          <DialogBody>
-            <Field>
-              <Label>{t('record.rx.voidReason')}</Label>
-              <Input name="reason" required autoFocus />
-            </Field>
-            <RequestError error={voidRx.error} className="mt-4" />
-          </DialogBody>
-          <DialogActions>
+      <SidePanel
+        open={voidOpen}
+        onClose={setVoidOpen}
+        size="md"
+        title={t('record.rx.voidTitle')}
+        description={<>{t('record.rx.voidHint')}</>}
+        onSubmit={async (event) => {
+          event.preventDefault()
+          const reason = String(new FormData(event.currentTarget).get('reason') ?? '').trim()
+          if (!reason) return
+          await voidRx.mutateAsync({ prescriptionId: rx.id, reason })
+          setVoidOpen(false)
+        }}
+        actions={
+          <>
             <Button plain onClick={() => setVoidOpen(false)}>
               {t('record.cancel')}
             </Button>
             <Button type="submit" color="red" disabled={voidRx.isPending}>
               {t('record.rx.void')}
             </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+          </>
+        }
+      >
+        <Field>
+          <Label>{t('record.rx.voidReason')}</Label>
+          <Input name="reason" required autoFocus />
+        </Field>
+        <RequestError error={voidRx.error} className="mt-4" />
+      </SidePanel>
     </Card>
   )
 }
@@ -149,136 +150,139 @@ function NewPrescriptionDialog({ patient, onClose }: { patient: PatientDto; onCl
   }
 
   return (
-    <Dialog open onClose={onClose} size="4xl">
-      <form
-        noValidate
-        onSubmit={async (event) => {
-          event.preventDefault()
-          const parsed = CreatePrescriptionSchema.safeParse({
-            diagnosis: diagnosis || null,
-            notes: notes || null,
-            items: items.filter((i) => i.drugName.trim()),
-          })
-          if (!parsed.success) return setFormError(parsed.error.issues[0]?.message ?? 'Invalid')
-          setFormError(null)
-          await create.mutateAsync(parsed.data)
-          onClose()
-        }}
-      >
-        <DialogTitle>
+    <SidePanel
+      open
+      onClose={onClose}
+      size="4xl"
+      title={
+        <>
           {t('record.rx.new')} · {patient.fullName}
-        </DialogTitle>
-        {patient.allergies.length > 0 && (
-          <p className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm/6 font-semibold text-red-800 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900">
-            <ExclamationTriangleIcon className="size-4 shrink-0" />
-            {t('record.allergyAlert', { list: patient.allergies.map((a) => a.substance).join(', ') })}
-          </p>
-        )}
-        <DialogBody>
-          <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
-            <FieldGroup>
-              <Field>
-                <Label>{t('record.rx.diagnosis')}</Label>
-                <Input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
-              </Field>
-              <div className="space-y-3">
-                <Label>{t('record.rx.medicines')}</Label>
-                {items.map((item, i) => (
-                  <div key={i} className="space-y-2 rounded-lg bg-zinc-50 p-3 dark:bg-white/5">
-                    <div className="flex gap-2">
-                      <Input
-                        aria-label={t('record.rx.drug')}
-                        placeholder={t('record.rx.drug')}
-                        value={item.drugName}
-                        onChange={(e) => setItem(i, { drugName: e.target.value })}
-                      />
-                      <Button
-                        plain
-                        aria-label={t('record.remove')}
-                        onClick={() => setItems(items.length > 1 ? items.filter((_, j) => j !== i) : [emptyItem()])}
-                      >
-                        <TrashIcon />
-                      </Button>
-                    </div>
-                    <div className="grid gap-2 sm:grid-cols-3">
-                      <Input
-                        aria-label={t('record.rx.dose')}
-                        placeholder={t('record.rx.dose')}
-                        value={item.dose}
-                        onChange={(e) => setItem(i, { dose: e.target.value })}
-                      />
-                      <Input
-                        aria-label={t('record.rx.frequency')}
-                        placeholder={t('record.rx.frequency')}
-                        value={item.frequency}
-                        onChange={(e) => setItem(i, { frequency: e.target.value })}
-                      />
-                      <Input
-                        aria-label={t('record.rx.duration')}
-                        placeholder={t('record.rx.duration')}
-                        value={item.duration}
-                        onChange={(e) => setItem(i, { duration: e.target.value })}
-                      />
-                    </div>
-                    <Input
-                      aria-label={t('record.rx.instructions')}
-                      placeholder={t('record.rx.instructions')}
-                      value={item.instructions}
-                      onChange={(e) => setItem(i, { instructions: e.target.value })}
-                    />
-                  </div>
-                ))}
-                <Button outline onClick={() => setItems([...items, emptyItem()])}>
-                  <PlusIcon />
-                  {t('record.rx.addMedicine')}
-                </Button>
-              </div>
-              <Field>
-                <Label>{t('record.rx.notes')}</Label>
-                <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
-              </Field>
-            </FieldGroup>
-
-            <aside className="space-y-2">
-              <Label>{t('record.rx.quickPick')}</Label>
-              <Input
-                type="search"
-                aria-label={t('common.search')}
-                placeholder={t('common.search')}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <ul className="max-h-80 space-y-1 overflow-y-auto">
-                {suggestions.map((s) => (
-                  <li key={s.drugName}>
-                    <button
-                      type="button"
-                      onClick={() => addSuggestion(s)}
-                      className="w-full rounded-lg px-3 py-2 text-start hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-brand-600 dark:hover:bg-brand-950/40"
-                    >
-                      <span className="block text-sm/5 font-medium text-zinc-950 dark:text-white">{s.drugName}</span>
-                      <span className="block text-xs/5 text-zinc-500">
-                        {s.dose} · {s.frequency}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-              <Text className="text-xs/5!">{t('record.rx.quickPickHint')}</Text>
-            </aside>
-          </div>
-          {formError && <RequestError error={new Error(formError)} className="mt-4" />}
-          <RequestError error={create.error} className="mt-4" />
-        </DialogBody>
-        <DialogActions>
+        </>
+      }
+      onSubmit={async (event) => {
+        event.preventDefault()
+        const parsed = CreatePrescriptionSchema.safeParse({
+          diagnosis: diagnosis || null,
+          notes: notes || null,
+          items: items.filter((i) => i.drugName.trim()),
+        })
+        if (!parsed.success) return setFormError(parsed.error.issues[0]?.message ?? 'Invalid')
+        setFormError(null)
+        await create.mutateAsync(parsed.data)
+        onClose()
+      }}
+      actions={
+        <>
           <Button plain onClick={onClose}>
             {t('record.cancel')}
           </Button>
           <Button type="submit" color="brand" disabled={create.isPending}>
             {t('record.rx.issue')}
           </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </>
+      }
+    >
+      {patient.allergies.length > 0 && (
+        <p className="mt-3 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm/6 font-semibold text-red-800 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900">
+          <ExclamationTriangleIcon className="size-4 shrink-0" />
+          {t('record.allergyAlert', { list: patient.allergies.map((a) => a.substance).join(', ') })}
+        </p>
+      )}
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
+        <FieldGroup>
+          <Field>
+            <Label>{t('record.rx.diagnosis')}</Label>
+            <Input value={diagnosis} onChange={(e) => setDiagnosis(e.target.value)} />
+          </Field>
+          <div className="space-y-3">
+            <Label>{t('record.rx.medicines')}</Label>
+            {items.map((item, i) => (
+              <div key={i} className="space-y-2 rounded-lg bg-zinc-50 p-3 dark:bg-white/5">
+                <div className="flex gap-2">
+                  <Input
+                    aria-label={t('record.rx.drug')}
+                    placeholder={t('record.rx.drug')}
+                    value={item.drugName}
+                    onChange={(e) => setItem(i, { drugName: e.target.value })}
+                  />
+                  <Button
+                    plain
+                    aria-label={t('record.remove')}
+                    onClick={() => setItems(items.length > 1 ? items.filter((_, j) => j !== i) : [emptyItem()])}
+                  >
+                    <TrashIcon />
+                  </Button>
+                </div>
+                <div className="grid gap-2 sm:grid-cols-3">
+                  <Input
+                    aria-label={t('record.rx.dose')}
+                    placeholder={t('record.rx.dose')}
+                    value={item.dose}
+                    onChange={(e) => setItem(i, { dose: e.target.value })}
+                  />
+                  <Input
+                    aria-label={t('record.rx.frequency')}
+                    placeholder={t('record.rx.frequency')}
+                    value={item.frequency}
+                    onChange={(e) => setItem(i, { frequency: e.target.value })}
+                  />
+                  <Input
+                    aria-label={t('record.rx.duration')}
+                    placeholder={t('record.rx.duration')}
+                    value={item.duration}
+                    onChange={(e) => setItem(i, { duration: e.target.value })}
+                  />
+                </div>
+                <Input
+                  aria-label={t('record.rx.instructions')}
+                  placeholder={t('record.rx.instructions')}
+                  value={item.instructions}
+                  onChange={(e) => setItem(i, { instructions: e.target.value })}
+                />
+              </div>
+            ))}
+            <Button outline onClick={() => setItems([...items, emptyItem()])}>
+              <PlusIcon />
+              {t('record.rx.addMedicine')}
+            </Button>
+          </div>
+          <Field>
+            <Label>{t('record.rx.notes')}</Label>
+            <Textarea rows={2} value={notes} onChange={(e) => setNotes(e.target.value)} />
+          </Field>
+        </FieldGroup>
+
+        <aside className="space-y-2">
+          <Label>{t('record.rx.quickPick')}</Label>
+          <Input
+            type="search"
+            aria-label={t('common.search')}
+            placeholder={t('common.search')}
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+          <ul className="max-h-80 space-y-1 overflow-y-auto">
+            {suggestions.map((s) => (
+              <li key={s.drugName}>
+                <button
+                  type="button"
+                  onClick={() => addSuggestion(s)}
+                  className="w-full rounded-lg px-3 py-2 text-start hover:bg-brand-50 focus-visible:outline-2 focus-visible:outline-brand-600 dark:hover:bg-brand-950/40"
+                >
+                  <span className="block text-sm/5 font-medium text-zinc-950 dark:text-white">{s.drugName}</span>
+                  <span className="block text-xs/5 text-zinc-500">
+                    {s.dose} · {s.frequency}
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+          <Text className="text-xs/5!">{t('record.rx.quickPickHint')}</Text>
+        </aside>
+      </div>
+      {formError && <RequestError error={new Error(formError)} className="mt-4" />}
+      <RequestError error={create.error} className="mt-4" />
+    </SidePanel>
   )
 }

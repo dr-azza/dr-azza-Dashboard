@@ -2,7 +2,7 @@ import { RequestError, strOrNull, useFormat } from '@/components/app/form'
 import { Card } from '@/components/app/ui'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
+import { SidePanel } from '@/components/app/side-panel'
 import { Description, Field, FieldGroup, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
@@ -99,69 +99,68 @@ function UploadDialog({ patientId, onClose }: { patientId: string; onClose: () =
   const upload = useUploadAttachment(patientId)
   const [formError, setFormError] = useState<string | null>(null)
   return (
-    <Dialog open onClose={onClose}>
-      <form
-        noValidate
-        onSubmit={async (event) => {
-          event.preventDefault()
-          const f = new FormData(event.currentTarget)
-          const file = f.get('file')
-          const title = String(f.get('title') ?? '').trim()
-          if (!(file instanceof File) || file.size === 0 || !title)
-            return setFormError(`${t('record.files.file')} · ${t('record.files.title')}`)
-          if (file.size > MAX_UPLOAD_BYTES) return setFormError(t('record.files.allowed'))
-          setFormError(null)
-          await upload.mutateAsync({
-            file,
-            title,
-            kind: f.get('kind') as AttachmentKindCode,
-            takenAt: strOrNull(f.get('takenAt')) ?? undefined,
-          })
-          onClose()
-        }}
-      >
-        <DialogTitle>{t('record.files.upload')}</DialogTitle>
-        <DialogBody>
-          <FieldGroup>
-            <Field>
-              <Label>{t('record.files.file')}</Label>
-              <Input name="file" type="file" required accept={ALLOWED_UPLOAD_TYPES.join(',')} />
-              <Description>{t('record.files.allowed')}</Description>
-            </Field>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <Field>
-                <Label>{t('record.files.kind')}</Label>
-                <Select name="kind" defaultValue="LAB_RESULT">
-                  {UPLOAD_KINDS.map((k) => (
-                    <option key={k} value={k}>
-                      {t(`record.files.kinds.${k}`)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-              <Field>
-                <Label>{t('record.files.takenAt')}</Label>
-                <Input name="takenAt" type="date" />
-              </Field>
-            </div>
-            <Field>
-              <Label>{t('record.files.title')}</Label>
-              <Input name="title" required />
-            </Field>
-            {formError && <RequestError error={new Error(formError)} />}
-            <RequestError error={upload.error} />
-          </FieldGroup>
-        </DialogBody>
-        <DialogActions>
+    <SidePanel
+      open
+      onClose={onClose}
+      title={t('record.files.upload')}
+      onSubmit={async (event) => {
+        event.preventDefault()
+        const f = new FormData(event.currentTarget)
+        const file = f.get('file')
+        const title = String(f.get('title') ?? '').trim()
+        if (!(file instanceof File) || file.size === 0 || !title)
+          return setFormError(`${t('record.files.file')} · ${t('record.files.title')}`)
+        if (file.size > MAX_UPLOAD_BYTES) return setFormError(t('record.files.allowed'))
+        setFormError(null)
+        await upload.mutateAsync({
+          file,
+          title,
+          kind: f.get('kind') as AttachmentKindCode,
+          takenAt: strOrNull(f.get('takenAt')) ?? undefined,
+        })
+        onClose()
+      }}
+      actions={
+        <>
           <Button plain onClick={onClose}>
             {t('record.cancel')}
           </Button>
           <Button type="submit" color="brand" disabled={upload.isPending}>
             {t('record.files.upload')}
           </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </>
+      }
+    >
+      <FieldGroup>
+        <Field>
+          <Label>{t('record.files.file')}</Label>
+          <Input name="file" type="file" required accept={ALLOWED_UPLOAD_TYPES.join(',')} />
+          <Description>{t('record.files.allowed')}</Description>
+        </Field>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <Field>
+            <Label>{t('record.files.kind')}</Label>
+            <Select name="kind" defaultValue="LAB_RESULT">
+              {UPLOAD_KINDS.map((k) => (
+                <option key={k} value={k}>
+                  {t(`record.files.kinds.${k}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+          <Field>
+            <Label>{t('record.files.takenAt')}</Label>
+            <Input name="takenAt" type="date" />
+          </Field>
+        </div>
+        <Field>
+          <Label>{t('record.files.title')}</Label>
+          <Input name="title" required />
+        </Field>
+        {formError && <RequestError error={new Error(formError)} />}
+        <RequestError error={upload.error} />
+      </FieldGroup>
+    </SidePanel>
   )
 }
 
@@ -169,20 +168,32 @@ function RemoveDialog({ patientId, file, onClose }: { patientId: string; file: A
   const { t } = useLang()
   const remove = useDeleteAttachment(patientId)
   return (
-    <Dialog open onClose={onClose} size="md">
-      <DialogTitle>{t('record.files.deleteTitle')}</DialogTitle>
-      <DialogDescription>
-        {file.title}. {t('record.files.deleteHint')}
-      </DialogDescription>
+    <SidePanel
+      open
+      onClose={onClose}
+      size="md"
+      title={t('record.files.deleteTitle')}
+      description={
+        <>
+          {file.title}. {t('record.files.deleteHint')}
+        </>
+      }
+      actions={
+        <>
+          <Button plain onClick={onClose}>
+            {t('record.cancel')}
+          </Button>
+          <Button
+            color="red"
+            disabled={remove.isPending}
+            onClick={() => remove.mutate(file.id, { onSuccess: onClose })}
+          >
+            {t('record.files.delete')}
+          </Button>
+        </>
+      }
+    >
       <RequestError error={remove.error} className="mt-4" />
-      <DialogActions>
-        <Button plain onClick={onClose}>
-          {t('record.cancel')}
-        </Button>
-        <Button color="red" disabled={remove.isPending} onClick={() => remove.mutate(file.id, { onSuccess: onClose })}>
-          {t('record.files.delete')}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    </SidePanel>
   )
 }

@@ -2,7 +2,7 @@ import { RequestError, strOrNull, toLocalInputValue, useFormat } from '@/compone
 import { Card } from '@/components/app/ui'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
+import { SidePanel } from '@/components/app/side-panel'
 import { Description, Field, FieldGroup, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
@@ -159,107 +159,107 @@ function NewPaymentDialog({ patientId, onClose }: { patientId: string; onClose: 
   const pending = create.isPending || upload.isPending
 
   return (
-    <Dialog open onClose={onClose} size="xl">
-      <form
-        noValidate
-        onSubmit={async (event) => {
-          event.preventDefault()
-          const f = new FormData(event.currentTarget)
-          const parsed = CreatePaymentSchema.safeParse({
-            amount: Number(f.get('amount')),
-            method: f.get('method'),
-            purpose: f.get('purpose'),
-            reference: strOrNull(f.get('reference')),
-            paidAt: new Date(String(f.get('paidAt'))).toISOString(),
-            notes: strOrNull(f.get('notes')),
+    <SidePanel
+      open
+      onClose={onClose}
+      size="xl"
+      title={t('record.payments.record')}
+      onSubmit={async (event) => {
+        event.preventDefault()
+        const f = new FormData(event.currentTarget)
+        const parsed = CreatePaymentSchema.safeParse({
+          amount: Number(f.get('amount')),
+          method: f.get('method'),
+          purpose: f.get('purpose'),
+          reference: strOrNull(f.get('reference')),
+          paidAt: new Date(String(f.get('paidAt'))).toISOString(),
+          notes: strOrNull(f.get('notes')),
+        })
+        const proof = f.get('proof')
+        const file = proof instanceof File && proof.size > 0 ? proof : null
+        if (!parsed.success)
+          return setFormError(parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(' · '))
+        if (file && file.size > MAX_UPLOAD_BYTES) return setFormError(t('record.files.allowed'))
+        setFormError(null)
+        // Record the payment first, then attach the proof to it.
+        const payment = await create.mutateAsync(parsed.data)
+        if (file)
+          await upload.mutateAsync({
+            file,
+            kind: 'PAYMENT_PROOF',
+            title: t('record.payments.proof'),
+            paymentId: payment.id,
           })
-          const proof = f.get('proof')
-          const file = proof instanceof File && proof.size > 0 ? proof : null
-          if (!parsed.success)
-            return setFormError(parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(' · '))
-          if (file && file.size > MAX_UPLOAD_BYTES) return setFormError(t('record.files.allowed'))
-          setFormError(null)
-          // Record the payment first, then attach the proof to it.
-          const payment = await create.mutateAsync(parsed.data)
-          if (file)
-            await upload.mutateAsync({
-              file,
-              kind: 'PAYMENT_PROOF',
-              title: t('record.payments.proof'),
-              paymentId: payment.id,
-            })
-          onClose()
-        }}
-      >
-        <DialogTitle>{t('record.payments.record')}</DialogTitle>
-        <DialogBody>
-          <FieldGroup>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <Field>
-                <Label>{t('record.payments.amount')}</Label>
-                <Input
-                  name="amount"
-                  type="number"
-                  min="0.01"
-                  step="0.01"
-                  inputMode="decimal"
-                  required
-                  autoFocus
-                  dir="ltr"
-                />
-              </Field>
-              <Field>
-                <Label>{t('record.payments.method')}</Label>
-                <Select name="method" defaultValue="CASH">
-                  {PAYMENT_METHODS.map((m) => (
-                    <option key={m} value={m}>
-                      {t(`record.payments.methods.${m}`)}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
-            </div>
-            <div className="grid gap-6 sm:grid-cols-2">
-              <Field>
-                <Label>{t('record.payments.purpose')}</Label>
-                <Input name="purpose" required placeholder={t('record.payments.purposeHint')} />
-              </Field>
-              <Field>
-                <Label>{t('record.payments.paidAt')}</Label>
-                <Input name="paidAt" type="datetime-local" required defaultValue={toLocalInputValue()} />
-              </Field>
-            </div>
-            <Field>
-              <Label>
-                {t('record.payments.reference')} <span className="text-zinc-400">({t('record.optional')})</span>
-              </Label>
-              <Input name="reference" dir="ltr" />
-            </Field>
-            <Field>
-              <Label>{t('record.payments.proof')}</Label>
-              <Input name="proof" type="file" accept={ALLOWED_UPLOAD_TYPES.join(',')} />
-              <Description>
-                {t('record.payments.proofHint')} · {t('record.files.allowed')}
-              </Description>
-            </Field>
-            <Field>
-              <Label>{t('record.payments.notes')}</Label>
-              <Input name="notes" />
-            </Field>
-            {formError && <RequestError error={new Error(formError)} />}
-            <RequestError error={create.error ?? upload.error} />
-          </FieldGroup>
-        </DialogBody>
-        <DialogActions>
+        onClose()
+      }}
+      actions={
+        <>
           <Button plain onClick={onClose}>
             {t('record.cancel')}
           </Button>
           <Button type="submit" color="brand" disabled={pending}>
             {t('record.save')}
           </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </>
+      }
+    >
+      <FieldGroup>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <Field>
+            <Label>{t('record.payments.amount')}</Label>
+            <Input
+              name="amount"
+              type="number"
+              min="0.01"
+              step="0.01"
+              inputMode="decimal"
+              required
+              autoFocus
+              dir="ltr"
+            />
+          </Field>
+          <Field>
+            <Label>{t('record.payments.method')}</Label>
+            <Select name="method" defaultValue="CASH">
+              {PAYMENT_METHODS.map((m) => (
+                <option key={m} value={m}>
+                  {t(`record.payments.methods.${m}`)}
+                </option>
+              ))}
+            </Select>
+          </Field>
+        </div>
+        <div className="grid gap-6 sm:grid-cols-2">
+          <Field>
+            <Label>{t('record.payments.purpose')}</Label>
+            <Input name="purpose" required placeholder={t('record.payments.purposeHint')} />
+          </Field>
+          <Field>
+            <Label>{t('record.payments.paidAt')}</Label>
+            <Input name="paidAt" type="datetime-local" required defaultValue={toLocalInputValue()} />
+          </Field>
+        </div>
+        <Field>
+          <Label>
+            {t('record.payments.reference')} <span className="text-zinc-400">({t('record.optional')})</span>
+          </Label>
+          <Input name="reference" dir="ltr" />
+        </Field>
+        <Field>
+          <Label>{t('record.payments.proof')}</Label>
+          <Input name="proof" type="file" accept={ALLOWED_UPLOAD_TYPES.join(',')} />
+          <Description>
+            {t('record.payments.proofHint')} · {t('record.files.allowed')}
+          </Description>
+        </Field>
+        <Field>
+          <Label>{t('record.payments.notes')}</Label>
+          <Input name="notes" />
+        </Field>
+        {formError && <RequestError error={new Error(formError)} />}
+        <RequestError error={create.error ?? upload.error} />
+      </FieldGroup>
+    </SidePanel>
   )
 }
 
@@ -276,36 +276,39 @@ function VoidPaymentDialog({
   const fmt = useFormat()
   const voidPayment = useVoidPayment(patientId)
   return (
-    <Dialog open onClose={onClose} size="md">
-      <form
-        onSubmit={async (event) => {
-          event.preventDefault()
-          const reason = String(new FormData(event.currentTarget).get('reason') ?? '').trim()
-          if (!reason) return
-          await voidPayment.mutateAsync({ paymentId: payment.id, reason })
-          onClose()
-        }}
-      >
-        <DialogTitle>{t('record.payments.voidTitle')}</DialogTitle>
-        <DialogDescription>
+    <SidePanel
+      open
+      onClose={onClose}
+      size="md"
+      title={t('record.payments.voidTitle')}
+      description={
+        <>
           {fmt.money(payment.amount, payment.currency)} · {payment.purpose}. {t('record.payments.voidHint')}
-        </DialogDescription>
-        <DialogBody>
-          <Field>
-            <Label>{t('record.payments.voidReason')}</Label>
-            <Input name="reason" required autoFocus />
-          </Field>
-          <RequestError error={voidPayment.error} className="mt-4" />
-        </DialogBody>
-        <DialogActions>
+        </>
+      }
+      onSubmit={async (event) => {
+        event.preventDefault()
+        const reason = String(new FormData(event.currentTarget).get('reason') ?? '').trim()
+        if (!reason) return
+        await voidPayment.mutateAsync({ paymentId: payment.id, reason })
+        onClose()
+      }}
+      actions={
+        <>
           <Button plain onClick={onClose}>
             {t('record.cancel')}
           </Button>
           <Button type="submit" color="red" disabled={voidPayment.isPending}>
             {t('record.payments.void')}
           </Button>
-        </DialogActions>
-      </form>
-    </Dialog>
+        </>
+      }
+    >
+      <Field>
+        <Label>{t('record.payments.voidReason')}</Label>
+        <Input name="reason" required autoFocus />
+      </Field>
+      <RequestError error={voidPayment.error} className="mt-4" />
+    </SidePanel>
   )
 }

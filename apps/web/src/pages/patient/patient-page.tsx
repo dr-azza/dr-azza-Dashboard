@@ -4,7 +4,7 @@ import { Button } from '@/components/catalyst/button'
 import { Heading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
-import { caseKey, statusKey, statusTone } from '@/components/patient/labels'
+import { statusKey, statusTone } from '@/components/patient/labels'
 import { useLang } from '@/i18n'
 import { ApiError } from '@/lib/api'
 import { usePatient } from '@/lib/queries'
@@ -23,7 +23,7 @@ type Tab = (typeof TABS)[number]
 
 export function PatientPage() {
   const { id = '' } = useParams()
-  const { t } = useLang()
+  const { t, l } = useLang()
   const fmt = useFormat()
   const [params, setParams] = useSearchParams()
   const patient = usePatient(id)
@@ -84,7 +84,7 @@ export function PatientPage() {
                 {formatPhone(p.phone)}
               </a>
               <ToneBadge tone={statusTone[p.status]}>{t(statusKey(p.status))}</ToneBadge>
-              <ToneBadge tone="neutral">{t(caseKey(p.caseType))}</ToneBadge>
+              <ToneBadge tone="neutral">{l(p.caseType.name)}</ToneBadge>
               {p.gravida > 0 && <ToneBadge tone="neutral">{t('record.gp', { g: p.gravida, p: p.para })}</ToneBadge>}
               {p.bloodGroup && (
                 <ToneBadge tone="neutral">
