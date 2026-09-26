@@ -1,0 +1,44 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Lint, format, typecheck, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Format
+        run: pnpm format:check
+
+      # The web app needs the licensed Catalyst UI Kit, which is not in the repository,
+      # so CI checks everything else. Run `pnpm typecheck && pnpm build` locally before merging web changes.
+      - name: Typecheck (all packages except web)
+        run: pnpm turbo run typecheck --filter='!@azza/web'
+
+      - name: Build (all packages except web)
+        run: pnpm turbo run build --filter='!@azza/web'

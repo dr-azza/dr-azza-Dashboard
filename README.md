@@ -52,3 +52,11 @@ Internal packages are consumed as TypeScript source (`exports` points to `src/in
 - **Performance:** every route is lazy-loaded, so the patient form (`/f/:token`) never downloads the staff dashboard. Fonts are self-hosted: IBM Plex Sans Arabic (free, OFL), which includes matching Latin, for both Arabic and English.
 - **Logo:** use `AzzahSymbol`, `AzzahLockup` or `AzzahAppIcon` from `components/brand/logo`. They are drawn from the official `LogoFf.ai` artwork. Don't redraw, recolor outside the official variants, or add effects.
 - **Data:** `src/data/mock.ts` stands in for the API until it exists.
+
+## Contributing
+
+- **Branches:** `main` is always deployable and protected. Work on a short-lived branch named `feat/…`, `fix/…` or `chore/…`, then open a pull request.
+- **Commits:** use [Conventional Commits](https://www.conventionalcommits.org), for example `feat(web): add visit form` or `fix(shared): correct EDD rounding`. Scopes are `web`, `api`, `mobile`, `shared`, `i18n`, `brand` and `repo`.
+- **Pull requests:** CI must pass (lint, formatting, type-check and build for everything except the web app, which needs the licensed Catalyst kit). Run the web checks locally, fill in the PR template, and squash-merge.
+- **Dependencies:** Dependabot opens one grouped pull request per week for minor and patch updates.
+- **Patient data:** never commit real patient data, exports or credentials. Use the sample data only.

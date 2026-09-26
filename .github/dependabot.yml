@@ -1,0 +1,21 @@
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: sunday
+    open-pull-requests-limit: 5
+    groups:
+      # One PR per week for routine updates; majors come separately so they can be reviewed.
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Pinned: typescript-eslint does not support TypeScript 7 yet.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
