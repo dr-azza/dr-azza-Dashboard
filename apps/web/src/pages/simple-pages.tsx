@@ -83,13 +83,3 @@ export function AppointmentsPage() {
     </div>
   )
 }
-
-export function SettingsPage() {
-  const { t } = useLang()
-  return (
-    <div className="space-y-2">
-      <Heading className="headline">{t('settings.title')}</Heading>
-      <Text>{t('common.comingSoon')}</Text>
-    </div>
-  )
-}

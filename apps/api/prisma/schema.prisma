@@ -34,6 +34,7 @@ model Clinic {
   formTemplates FormTemplate[]
   reminders     Reminder[]
   auditLogs     AuditLog[]
+  caseTypes     CaseType[]
 
   @@map("clinics")
 }
@@ -77,13 +78,28 @@ model StaffMember {
 // Patients and clinical follow-up
 // ---------------------------------------------------------------------------
 
-enum CaseType {
-  PREGNANCY
-  GYNECOLOGY
-  POSTPARTUM
-  FERTILITY
+/// Kinds of case a clinic follows (Pregnancy, Gynecology, …). Each clinic manages its own list.
+/// Built-in cases carry a `systemKey` so the app can act on them (e.g. starting a pregnancy
+/// moves the patient to the PREGNANCY case); cases the clinic adds have none.
+model CaseType {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  clinicId   String    @map("clinic_id") @db.Uuid
+  nameEn     String    @map("name_en")
+  nameAr     String    @map("name_ar")
+  /// PREGNANCY | GYNECOLOGY | POSTPARTUM | FERTILITY for built-in cases, null for custom ones.
+  systemKey  String?   @map("system_key")
+  sortOrder  Int       @default(100) @map("sort_order")
+  archivedAt DateTime? @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  @@map("case_type")
+  clinic   Clinic    @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  patients Patient[]
+
+  @@unique([clinicId, nameEn])
+  @@unique([clinicId, systemKey])
+  @@index([clinicId, sortOrder])
+  @@map("case_types")
 }
 
 enum PatientStatus {
@@ -106,7 +122,7 @@ model Patient {
   dateOfBirth DateTime?     @map("date_of_birth") @db.Date
   /// E.164 format, e.g. +201012344410.
   phone       String
-  caseType    CaseType      @map("case_type")
+  caseTypeId  String        @map("case_type_id") @db.Uuid
   status      PatientStatus @default(OK)
   /// Consent to store and process health data, required before any form is sent.
   consentAt   DateTime?     @map("consent_at") @db.Timestamptz(3)
@@ -116,6 +132,7 @@ model Patient {
   archivedAt  DateTime?     @map("archived_at") @db.Timestamptz(3)
 
   clinic           Clinic                  @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  caseType         CaseType                @relation(fields: [caseTypeId], references: [id], onDelete: Restrict)
   pregnancies      Pregnancy[]
   visits           Visit[]
   formRequests     FormRequest[]
@@ -129,7 +146,7 @@ model Patient {
 
   @@unique([clinicId, fileNumber])
   @@index([clinicId, status])
-  @@index([clinicId, caseType])
+  @@index([clinicId, caseTypeId])
   @@map("patients")
 }
 

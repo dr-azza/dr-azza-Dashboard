@@ -18,6 +18,7 @@ import {
 } from '../common/format'
 import type { Prisma } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
+import { CaseTypesService } from '../case-types/case-types.service'
 import { gestationOn, PatientScope, pregnancyFacts } from './patient-scope.service'
 
 type PregnancyRow = Prisma.PregnancyGetPayload<object>
@@ -63,6 +64,7 @@ export class FollowUpService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: PatientScope,
+    private readonly caseTypes: CaseTypesService,
   ) {}
 
   async listPregnancies(staff: AuthStaff, patientId: string) {
@@ -77,11 +79,12 @@ export class FollowUpService {
     if (active) throw new ConflictException('This patient already has an active pregnancy')
     const lmp = fromIsoDay(input.lmp)
     if (lmp.getTime() > Date.now()) throw new BadRequestException('The last period date cannot be in the future')
+    const pregnancyCase = await this.caseTypes.systemCase(staff.clinicId, 'PREGNANCY')
     const row = await this.prisma.$transaction(async (tx) => {
       const created = await tx.pregnancy.create({
         data: { patientId, lmp, eddOverride: fromIsoDayOrNull(input.eddOverride), riskNotes: input.riskNotes ?? null },
       })
-      await tx.patient.update({ where: { id: patientId }, data: { caseType: 'PREGNANCY' } })
+      await tx.patient.update({ where: { id: patientId }, data: { caseTypeId: pregnancyCase.id } })
       return created
     })
     return toPregnancyDto(row)
@@ -91,10 +94,10 @@ export class FollowUpService {
     await this.scope.require(staff, patientId)
     const found = await this.prisma.pregnancy.findFirst({ where: { id: pregnancyId, patientId, status: 'ACTIVE' } })
     if (!found) throw new NotFoundException('Active pregnancy not found')
+    const postpartumCase = status === 'DELIVERED' ? await this.caseTypes.systemCase(staff.clinicId, 'POSTPARTUM') : null
     const row = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.pregnancy.update({ where: { id: pregnancyId }, data: { status, endedAt: new Date() } })
-      if (status === 'DELIVERED')
-        await tx.patient.update({ where: { id: patientId }, data: { caseType: 'POSTPARTUM' } })
+      if (postpartumCase) await tx.patient.update({ where: { id: patientId }, data: { caseTypeId: postpartumCase.id } })
       return updated
     })
     return toPregnancyDto(row)

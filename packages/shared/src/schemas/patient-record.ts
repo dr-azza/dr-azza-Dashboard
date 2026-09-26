@@ -5,7 +5,8 @@
 import { z } from 'zod'
 import { isoDate, optionalText, phoneE164, requiredText } from './common.js'
 
-export const CASE_TYPES = ['PREGNANCY', 'GYNECOLOGY', 'POSTPARTUM', 'FERTILITY'] as const
+/** Built-in cases every clinic starts with. Clinics can add their own on top. */
+export const SYSTEM_CASE_KEYS = ['PREGNANCY', 'GYNECOLOGY', 'POSTPARTUM', 'FERTILITY'] as const
 export const PATIENT_STATUSES = ['OK', 'FLAGGED', 'OVERDUE', 'AWAITING'] as const
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const
 
@@ -16,9 +17,7 @@ export const CreatePatientSchema = z.object({
   fullNameAr: optionalText(120),
   phone: phoneE164,
   dateOfBirth: isoDate.nullish(),
-  caseType: z.enum(CASE_TYPES),
-  /** Leave empty to have the clinic assign the next file number. */
-  fileNumber: z.string().trim().max(20).optional(),
+  caseTypeId: z.uuid(),
   consentGiven: z.boolean().refine((v) => v, { message: 'Consent is required to create a medical record' }),
 })
 export type CreatePatientInput = z.input<typeof CreatePatientSchema>
@@ -29,7 +28,7 @@ export const UpdatePatientSchema = z
     fullNameAr: optionalText(120),
     phone: phoneE164,
     dateOfBirth: isoDate.nullable(),
-    caseType: z.enum(CASE_TYPES),
+    caseTypeId: z.uuid(),
     status: z.enum(PATIENT_STATUSES),
   })
   .partial()
@@ -37,12 +36,30 @@ export type UpdatePatientInput = z.input<typeof UpdatePatientSchema>
 
 export const ListPatientsQuerySchema = z.object({
   q: z.string().trim().max(100).optional(),
-  caseType: z.enum(CASE_TYPES).optional(),
+  caseTypeId: z.uuid().optional(),
   status: z.enum(PATIENT_STATUSES).optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 })
 export type ListPatientsQuery = z.output<typeof ListPatientsQuerySchema>
+
+// --- Case types ---------------------------------------------------------------
+
+export const CreateCaseTypeSchema = z.object({
+  nameEn: requiredText(60),
+  nameAr: requiredText(60),
+})
+export type CreateCaseTypeInput = z.input<typeof CreateCaseTypeSchema>
+
+export const UpdateCaseTypeSchema = z
+  .object({
+    nameEn: requiredText(60),
+    nameAr: requiredText(60),
+    archived: z.boolean(),
+    sortOrder: z.number().int().min(0).max(10_000),
+  })
+  .partial()
+export type UpdateCaseTypeInput = z.input<typeof UpdateCaseTypeSchema>
 
 // --- Medical history --------------------------------------------------------
 

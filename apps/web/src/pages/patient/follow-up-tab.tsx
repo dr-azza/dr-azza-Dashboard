@@ -9,7 +9,7 @@ import {
 import { PregnancyTimeline } from '@/components/app/pregnancy-timeline'
 import { Card } from '@/components/app/ui'
 import { Button } from '@/components/catalyst/button'
-import { Dialog, DialogActions, DialogBody, DialogTitle } from '@/components/catalyst/dialog'
+import { SidePanel } from '@/components/app/side-panel'
 import { Description, Field, FieldGroup, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
@@ -97,9 +97,20 @@ function ActivePregnancy({ patientId, pregnancy }: { patientId: string; pregnanc
         </div>
       </div>
 
-      <Dialog open={endOpen} onClose={setEndOpen} size="sm">
-        <DialogTitle>{t('record.followUp.endConfirm')}</DialogTitle>
-        <DialogBody className="flex flex-col gap-2">
+      <SidePanel
+        open={endOpen}
+        onClose={setEndOpen}
+        size="sm"
+        title={t('record.followUp.endConfirm')}
+        actions={
+          <>
+            <Button plain onClick={() => setEndOpen(false)}>
+              {t('record.cancel')}
+            </Button>
+          </>
+        }
+      >
+        <div className="flex flex-col gap-2">
           {(['DELIVERED', 'ENDED'] as const).map((status) => (
             <Button
               key={status}
@@ -111,13 +122,8 @@ function ActivePregnancy({ patientId, pregnancy }: { patientId: string; pregnanc
             </Button>
           ))}
           <RequestError error={end.error} />
-        </DialogBody>
-        <DialogActions>
-          <Button plain onClick={() => setEndOpen(false)}>
-            {t('record.cancel')}
-          </Button>
-        </DialogActions>
-      </Dialog>
+        </div>
+      </SidePanel>
     </Card>
   )
 }
@@ -126,6 +132,7 @@ function StartPregnancy({ patientId }: { patientId: string }) {
   const { t } = useLang()
   const start = useStartPregnancy(patientId)
   const [open, setOpen] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
 
   return (
     <Card>
@@ -136,51 +143,54 @@ function StartPregnancy({ patientId }: { patientId: string }) {
           {t('record.followUp.start')}
         </Button>
       </div>
-      <Dialog open={open} onClose={setOpen}>
-        <form
-          onSubmit={async (event) => {
-            event.preventDefault()
-            const f = new FormData(event.currentTarget)
-            const input = CreatePregnancySchema.parse({
-              lmp: f.get('lmp'),
-              eddOverride: strOrNull(f.get('eddOverride')),
-              riskNotes: strOrNull(f.get('riskNotes')),
-            })
-            await start.mutateAsync(input)
-            setOpen(false)
-          }}
-        >
-          <DialogTitle>{t('record.followUp.start')}</DialogTitle>
-          <DialogBody>
-            <FieldGroup>
-              <Field>
-                <Label>{t('record.followUp.lmp')}</Label>
-                <Input type="date" name="lmp" required max={todayInputValue()} />
-              </Field>
-              <Field>
-                <Label>
-                  {t('record.followUp.eddOverride')} <span className="text-zinc-400">({t('record.optional')})</span>
-                </Label>
-                <Input type="date" name="eddOverride" />
-                <Description>{t('record.followUp.eddOverrideHint')}</Description>
-              </Field>
-              <Field>
-                <Label>{t('record.followUp.riskNotes')}</Label>
-                <Textarea name="riskNotes" rows={2} />
-              </Field>
-              <RequestError error={start.error} />
-            </FieldGroup>
-          </DialogBody>
-          <DialogActions>
+      <SidePanel
+        open={open}
+        onClose={setOpen}
+        title={t('record.followUp.start')}
+        onSubmit={async (event) => {
+          event.preventDefault()
+          const f = new FormData(event.currentTarget)
+          const parsed = CreatePregnancySchema.safeParse({
+            lmp: f.get('lmp'),
+            eddOverride: strOrNull(f.get('eddOverride')),
+            riskNotes: strOrNull(f.get('riskNotes')),
+          })
+          if (!parsed.success) return setStartError(parsed.error.issues[0]?.message ?? 'Invalid')
+          setStartError(null)
+          await start.mutateAsync(parsed.data)
+          setOpen(false)
+        }}
+        actions={
+          <>
             <Button plain onClick={() => setOpen(false)}>
               {t('record.cancel')}
             </Button>
             <Button type="submit" color="brand" disabled={start.isPending}>
               {t('record.save')}
             </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+          </>
+        }
+      >
+        <FieldGroup>
+          <Field>
+            <Label>{t('record.followUp.lmp')}</Label>
+            <Input type="date" name="lmp" required max={todayInputValue()} />
+          </Field>
+          <Field>
+            <Label>
+              {t('record.followUp.eddOverride')} <span className="text-zinc-400">({t('record.optional')})</span>
+            </Label>
+            <Input type="date" name="eddOverride" />
+            <Description>{t('record.followUp.eddOverrideHint')}</Description>
+          </Field>
+          <Field>
+            <Label>{t('record.followUp.riskNotes')}</Label>
+            <Textarea name="riskNotes" rows={2} />
+          </Field>
+          {startError && <RequestError error={new Error(startError)} />}
+          <RequestError error={start.error} />
+        </FieldGroup>
+      </SidePanel>
     </Card>
   )
 }
@@ -252,76 +262,77 @@ function Visits({ patientId }: { patientId: string }) {
         </Table>
       )}
 
-      <Dialog open={open} onClose={setOpen} size="xl">
-        <form
-          noValidate
-          onSubmit={async (event) => {
-            event.preventDefault()
-            const f = new FormData(event.currentTarget)
-            const parsed = CreateVisitSchema.safeParse({
-              visitedAt: new Date(String(f.get('visitedAt'))).toISOString(),
-              weightKg: numOrNull(f.get('weightKg')),
-              systolic: numOrNull(f.get('systolic')),
-              diastolic: numOrNull(f.get('diastolic')),
-              fundalHeightCm: numOrNull(f.get('fundalHeightCm')),
-              fetalHeartRate: numOrNull(f.get('fetalHeartRate')),
-              notes: strOrNull(f.get('notes')),
-            })
-            if (!parsed.success) return setFormError(parsed.error.issues[0]?.message ?? 'Invalid')
-            setFormError(null)
-            await add.mutateAsync(parsed.data)
-            setOpen(false)
-          }}
-        >
-          <DialogTitle>{t('record.followUp.addVisit')}</DialogTitle>
-          <DialogBody>
-            <FieldGroup>
-              <Field>
-                <Label>{t('record.followUp.visitedAt')}</Label>
-                <Input type="datetime-local" name="visitedAt" required defaultValue={toLocalInputValue()} />
-              </Field>
-              <div className="grid gap-6 sm:grid-cols-3">
-                <Field>
-                  <Label>{t('record.followUp.weight')}</Label>
-                  <Input type="number" name="weightKg" step="0.1" min="25" max="250" inputMode="decimal" />
-                </Field>
-                <Field>
-                  <Label>{t('record.followUp.systolic')}</Label>
-                  <Input type="number" name="systolic" min="50" max="260" inputMode="numeric" />
-                </Field>
-                <Field>
-                  <Label>{t('record.followUp.diastolic')}</Label>
-                  <Input type="number" name="diastolic" min="30" max="180" inputMode="numeric" />
-                </Field>
-              </div>
-              <div className="grid gap-6 sm:grid-cols-2">
-                <Field>
-                  <Label>{t('record.followUp.fundal')}</Label>
-                  <Input type="number" name="fundalHeightCm" step="0.5" min="5" max="50" inputMode="decimal" />
-                </Field>
-                <Field>
-                  <Label>{t('record.followUp.fhr')}</Label>
-                  <Input type="number" name="fetalHeartRate" min="60" max="220" inputMode="numeric" />
-                </Field>
-              </div>
-              <Field>
-                <Label>{t('record.followUp.notes')}</Label>
-                <Textarea name="notes" rows={3} />
-              </Field>
-              {formError && <RequestError error={new Error(formError)} />}
-              <RequestError error={add.error} />
-            </FieldGroup>
-          </DialogBody>
-          <DialogActions>
+      <SidePanel
+        noValidate
+        open={open}
+        onClose={setOpen}
+        size="xl"
+        title={t('record.followUp.addVisit')}
+        onSubmit={async (event) => {
+          event.preventDefault()
+          const f = new FormData(event.currentTarget)
+          const parsed = CreateVisitSchema.safeParse({
+            visitedAt: new Date(String(f.get('visitedAt'))).toISOString(),
+            weightKg: numOrNull(f.get('weightKg')),
+            systolic: numOrNull(f.get('systolic')),
+            diastolic: numOrNull(f.get('diastolic')),
+            fundalHeightCm: numOrNull(f.get('fundalHeightCm')),
+            fetalHeartRate: numOrNull(f.get('fetalHeartRate')),
+            notes: strOrNull(f.get('notes')),
+          })
+          if (!parsed.success) return setFormError(parsed.error.issues[0]?.message ?? 'Invalid')
+          setFormError(null)
+          await add.mutateAsync(parsed.data)
+          setOpen(false)
+        }}
+        actions={
+          <>
             <Button plain onClick={() => setOpen(false)}>
               {t('record.cancel')}
             </Button>
             <Button type="submit" color="brand" disabled={add.isPending}>
               {t('record.save')}
             </Button>
-          </DialogActions>
-        </form>
-      </Dialog>
+          </>
+        }
+      >
+        <FieldGroup>
+          <Field>
+            <Label>{t('record.followUp.visitedAt')}</Label>
+            <Input type="datetime-local" name="visitedAt" required defaultValue={toLocalInputValue()} />
+          </Field>
+          <div className="grid gap-6 sm:grid-cols-3">
+            <Field>
+              <Label>{t('record.followUp.weight')}</Label>
+              <Input type="number" name="weightKg" step="0.1" min="25" max="250" inputMode="decimal" />
+            </Field>
+            <Field>
+              <Label>{t('record.followUp.systolic')}</Label>
+              <Input type="number" name="systolic" min="50" max="260" inputMode="numeric" />
+            </Field>
+            <Field>
+              <Label>{t('record.followUp.diastolic')}</Label>
+              <Input type="number" name="diastolic" min="30" max="180" inputMode="numeric" />
+            </Field>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2">
+            <Field>
+              <Label>{t('record.followUp.fundal')}</Label>
+              <Input type="number" name="fundalHeightCm" step="0.5" min="5" max="50" inputMode="decimal" />
+            </Field>
+            <Field>
+              <Label>{t('record.followUp.fhr')}</Label>
+              <Input type="number" name="fetalHeartRate" min="60" max="220" inputMode="numeric" />
+            </Field>
+          </div>
+          <Field>
+            <Label>{t('record.followUp.notes')}</Label>
+            <Textarea name="notes" rows={3} />
+          </Field>
+          {formError && <RequestError error={new Error(formError)} />}
+          <RequestError error={add.error} />
+        </FieldGroup>
+      </SidePanel>
     </Card>
   )
 }

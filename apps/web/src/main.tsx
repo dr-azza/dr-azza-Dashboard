@@ -39,7 +39,7 @@ const router = createBrowserRouter([
       },
       { path: '/forms', lazy: () => import('@/pages/forms').then((m) => ({ Component: m.FormsPage })) },
       { path: '/reminders', lazy: () => import('@/pages/simple-pages').then((m) => ({ Component: m.RemindersPage })) },
-      { path: '/settings', lazy: () => import('@/pages/simple-pages').then((m) => ({ Component: m.SettingsPage })) },
+      { path: '/settings', lazy: () => import('@/pages/settings').then((m) => ({ Component: m.SettingsPage })) },
     ],
   },
   {

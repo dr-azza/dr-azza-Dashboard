@@ -1,6 +1,6 @@
 import { Card, StatusBadge } from '@/components/app/ui'
 import { Button } from '@/components/catalyst/button'
-import { Dialog, DialogActions, DialogBody, DialogDescription, DialogTitle } from '@/components/catalyst/dialog'
+import { SidePanel } from '@/components/app/side-panel'
 import { Field, FieldGroup, Label } from '@/components/catalyst/fieldset'
 import { Heading } from '@/components/catalyst/heading'
 import { Input } from '@/components/catalyst/input'
@@ -213,83 +213,87 @@ export function FormsPage() {
         </Card>
       </div>
 
-      <Dialog open={sendOpen} onClose={setSendOpen} size="lg">
-        <DialogTitle>{t('forms.sendTitle', { form: l(template.name) })}</DialogTitle>
-        <DialogDescription>{t('forms.sendDescription')}</DialogDescription>
-        <DialogBody>
-          <FieldGroup>
-            <Field>
-              <Label>{t('forms.recipients')}</Label>
-              <div className="mt-3 flex flex-wrap gap-1.5">
-                {audience.map((p) => (
-                  <span
-                    key={p.id}
-                    className="rounded-md bg-brand-50 px-2 py-1 text-sm/5 font-medium text-brand-700 dark:bg-brand-950/50 dark:text-brand-300"
-                  >
-                    {l(p.name)}
-                  </span>
-                ))}
-              </div>
-              <Input className="mt-3" placeholder={t('forms.recipientsPlaceholder')} />
-            </Field>
-
-            <Field>
-              <Label>{t('forms.channel')}</Label>
-              <RadioGroup value={channel} onChange={setChannel} className="mt-3">
-                {(['whatsapp', 'sms', 'copyLink'] as const).map((c) => (
-                  <RadioField key={c}>
-                    <Radio value={c} color="brand" />
-                    <Label>{t(`forms.${c}`)}</Label>
-                  </RadioField>
-                ))}
-              </RadioGroup>
-            </Field>
-
-            <div className="grid gap-6 sm:grid-cols-2">
-              <Field>
-                <Label>{t('forms.expires')}</Label>
-                <Select defaultValue="7d">
-                  <option value="24h">{t('forms.expires24h')}</option>
-                  <option value="7d">{t('forms.expires7d')}</option>
-                  <option value="30d">{t('forms.expires30d')}</option>
-                </Select>
-              </Field>
-              <Field>
-                <Label>{t('forms.repeat')}</Label>
-                <Select defaultValue="weekly">
-                  <option value="once">{t('forms.repeatOnce')}</option>
-                  <option value="weekly">{t('forms.repeatWeekly')}</option>
-                  <option value="biweekly">{t('forms.repeatBiweekly')}</option>
-                </Select>
-              </Field>
+      <SidePanel
+        open={sendOpen}
+        onClose={setSendOpen}
+        size="lg"
+        title={t('forms.sendTitle', { form: l(template.name) })}
+        description={<>{t('forms.sendDescription')}</>}
+        actions={
+          <>
+            <Button plain onClick={() => setSendOpen(false)}>
+              {t('common.cancel')}
+            </Button>
+            <Button
+              color="brand"
+              onClick={() => {
+                setSendOpen(false)
+                setSentCount(audience.length)
+              }}
+            >
+              {t('common.send')} · {audience.length}
+            </Button>
+          </>
+        }
+      >
+        <FieldGroup>
+          <Field>
+            <Label>{t('forms.recipients')}</Label>
+            <div className="mt-3 flex flex-wrap gap-1.5">
+              {audience.map((p) => (
+                <span
+                  key={p.id}
+                  className="rounded-md bg-brand-50 px-2 py-1 text-sm/5 font-medium text-brand-700 dark:bg-brand-950/50 dark:text-brand-300"
+                >
+                  {l(p.name)}
+                </span>
+              ))}
             </div>
+            <Input className="mt-3" placeholder={t('forms.recipientsPlaceholder')} />
+          </Field>
 
+          <Field>
+            <Label>{t('forms.channel')}</Label>
+            <RadioGroup value={channel} onChange={setChannel} className="mt-3">
+              {(['whatsapp', 'sms', 'copyLink'] as const).map((c) => (
+                <RadioField key={c}>
+                  <Radio value={c} color="brand" />
+                  <Label>{t(`forms.${c}`)}</Label>
+                </RadioField>
+              ))}
+            </RadioGroup>
+          </Field>
+
+          <div className="grid gap-6 sm:grid-cols-2">
             <Field>
-              <Label>{t('forms.preview')}</Label>
-              <div className="mt-3 rounded-xl rounded-ss-sm bg-teal-50 px-4 py-3 text-sm/6 text-zinc-800 ring-1 ring-teal-100 dark:bg-teal-950/40 dark:text-zinc-200 dark:ring-teal-900">
-                {t('forms.previewText', {
-                  name: audience[0] ? l(audience[0].name).split(' ')[0] : '',
-                  link: `clinic.link/f/${lang}-•••`,
-                })}
-              </div>
+              <Label>{t('forms.expires')}</Label>
+              <Select defaultValue="7d">
+                <option value="24h">{t('forms.expires24h')}</option>
+                <option value="7d">{t('forms.expires7d')}</option>
+                <option value="30d">{t('forms.expires30d')}</option>
+              </Select>
             </Field>
-          </FieldGroup>
-        </DialogBody>
-        <DialogActions>
-          <Button plain onClick={() => setSendOpen(false)}>
-            {t('common.cancel')}
-          </Button>
-          <Button
-            color="brand"
-            onClick={() => {
-              setSendOpen(false)
-              setSentCount(audience.length)
-            }}
-          >
-            {t('common.send')} · {audience.length}
-          </Button>
-        </DialogActions>
-      </Dialog>
+            <Field>
+              <Label>{t('forms.repeat')}</Label>
+              <Select defaultValue="weekly">
+                <option value="once">{t('forms.repeatOnce')}</option>
+                <option value="weekly">{t('forms.repeatWeekly')}</option>
+                <option value="biweekly">{t('forms.repeatBiweekly')}</option>
+              </Select>
+            </Field>
+          </div>
+
+          <Field>
+            <Label>{t('forms.preview')}</Label>
+            <div className="mt-3 rounded-xl rounded-ss-sm bg-teal-50 px-4 py-3 text-sm/6 text-zinc-800 ring-1 ring-teal-100 dark:bg-teal-950/40 dark:text-zinc-200 dark:ring-teal-900">
+              {t('forms.previewText', {
+                name: audience[0] ? l(audience[0].name).split(' ')[0] : '',
+                link: `clinic.link/f/${lang}-•••`,
+              })}
+            </div>
+          </Field>
+        </FieldGroup>
+      </SidePanel>
     </div>
   )
 }

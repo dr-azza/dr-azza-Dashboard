@@ -4,6 +4,7 @@
  */
 import { hash } from '@node-rs/argon2'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { DEFAULT_CASE_TYPES } from '../src/case-types/defaults'
 import { PrismaClient } from '../src/generated/prisma/client'
 
 const url = process.env.DATABASE_URL
@@ -99,11 +100,19 @@ async function main() {
     },
   ]
 
-  for (const { pregnancy, ...data } of patients) {
+  // Built-in cases: the same list the API and the case_types migration use.
+  await prisma.caseType.createMany({
+    data: DEFAULT_CASE_TYPES.map((c) => ({ ...c, clinicId: clinic.id })),
+    skipDuplicates: true,
+  })
+  const cases = await prisma.caseType.findMany({ where: { clinicId: clinic.id, systemKey: { not: null } } })
+  const caseId = (key: string) => cases.find((c) => c.systemKey === key)!.id
+
+  for (const { pregnancy, caseType, ...data } of patients) {
     const patient = await prisma.patient.upsert({
       where: { clinicId_fileNumber: { clinicId: clinic.id, fileNumber: data.fileNumber } },
       update: {},
-      create: { ...data, clinicId: clinic.id, consentAt: new Date() },
+      create: { ...data, caseTypeId: caseId(caseType), clinicId: clinic.id, consentAt: new Date() },
     })
     if (pregnancy && (await prisma.pregnancy.count({ where: { patientId: patient.id } })) === 0) {
       const { gaDays, ...details } = pregnancy
