@@ -70,6 +70,8 @@ model StaffMember {
   payments             Payment[]
   attachments          Attachment[]
   notes                ClinicalNote[]
+  historyWritten       HistoryEntry[] @relation("HistoryAuthor")
+  historyEdited        HistoryEntry[] @relation("HistoryEditor")
   appointmentsAssigned Appointment[]  @relation("AppointmentAssignee")
   appointmentsCreated  Appointment[]  @relation("AppointmentCreator")
 
@@ -146,6 +148,7 @@ model Patient {
   payments         Payment[]
   attachments      Attachment[]
   notes            ClinicalNote[]
+  historyEntries   HistoryEntry[]
   appointments     Appointment[]
 
   @@unique([clinicId, fileNumber])
@@ -318,18 +321,18 @@ model Reminder {
 
 /// Append-only record of who read or changed what. Required for medical data.
 model AuditLog {
-  id       BigInt   @id @default(autoincrement())
-  clinicId String?  @map("clinic_id") @db.Uuid
-  actorId  String?  @map("actor_id") @db.Uuid
+  id        BigInt   @id @default(autoincrement())
+  clinicId  String?  @map("clinic_id") @db.Uuid
+  actorId   String?  @map("actor_id") @db.Uuid
   /// e.g. "patient.view", "visit.create", "form.submit".
-  action   String
-  entity   String
-  entityId String?  @map("entity_id")
+  action    String
+  entity    String
+  entityId  String?  @map("entity_id")
   /// The patient whose record this touched, if any: drives the patient's activity log.
-  patientId String? @map("patient_id") @db.Uuid
-  ip       String?
-  meta     Json?
-  at       DateTime @default(now()) @db.Timestamptz(3)
+  patientId String?  @map("patient_id") @db.Uuid
+  ip        String?
+  meta      Json?
+  at        DateTime @default(now()) @db.Timestamptz(3)
 
   clinic Clinic? @relation(fields: [clinicId], references: [id], onDelete: SetNull)
 
@@ -573,6 +576,34 @@ model ClinicalNote {
 
   @@index([patientId, createdAt(sort: Desc)])
   @@map("clinical_notes")
+}
+
+// ---------------------------------------------------------------------------
+// Free-text history: as many dated entries as the doctor writes, in sanitized rich text.
+
+model HistoryEntry {
+  id         String    @id @default(uuid(7)) @db.Uuid
+  patientId  String    @map("patient_id") @db.Uuid
+  authorId   String?   @map("author_id") @db.Uuid
+  editedById String?   @map("edited_by_id") @db.Uuid
+  /// The date the history refers to (defaults to the day it was written).
+  recordedOn DateTime  @map("recorded_on") @db.Date
+  title      String?
+  /// Sanitized on the server with a strict allow-list before it is stored.
+  bodyHtml   String    @map("body_html")
+  /// Plain-text copy of the body, for previews and search.
+  bodyText   String    @map("body_text")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
+  /// Removed entries are kept (medical record), just hidden.
+  deletedAt  DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  patient  Patient      @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  author   StaffMember? @relation("HistoryAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+  editedBy StaffMember? @relation("HistoryEditor", fields: [editedById], references: [id], onDelete: SetNull)
+
+  @@index([patientId, recordedOn(sort: Desc), createdAt(sort: Desc)])
+  @@map("history_entries")
 }
 
 // ---------------------------------------------------------------------------

@@ -202,6 +202,22 @@ export const CreateNoteSchema = z.object({
 })
 export type CreateNoteInput = z.input<typeof CreateNoteSchema>
 
+// --- History entries (free text) -------------------------------------------------
+
+/** Upper bound on an entry's HTML, generous for long histories but bounded for the database. */
+export const HISTORY_HTML_MAX = 100_000
+
+export const CreateHistoryEntrySchema = z.object({
+  recordedOn: isoDate,
+  title: optionalText(160),
+  /** Rich text as HTML; the API sanitizes it and rejects it if nothing readable is left. */
+  bodyHtml: z.string().max(HISTORY_HTML_MAX),
+})
+export type CreateHistoryEntryInput = z.input<typeof CreateHistoryEntrySchema>
+
+export const UpdateHistoryEntrySchema = CreateHistoryEntrySchema.partial()
+export type UpdateHistoryEntryInput = z.input<typeof UpdateHistoryEntrySchema>
+
 // --- Appointments ------------------------------------------------------------------
 
 export const APPOINTMENT_TYPES = ['VISIT', 'CALL', 'SCAN', 'LAB', 'FOLLOW_UP', 'OTHER'] as const

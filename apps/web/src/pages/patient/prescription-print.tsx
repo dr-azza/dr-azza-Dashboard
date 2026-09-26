@@ -74,11 +74,6 @@ export function PrescriptionPrintPage() {
               {t('common.ga', { w: p.activePregnancy.weeks, d: p.activePregnancy.days })}
             </div>
           )}
-          {p.allergies.length > 0 && (
-            <div className="col-span-2 font-semibold text-red-700">
-              {t('record.allergyAlert', { list: p.allergies.map((a) => a.substance).join(', ') })}
-            </div>
-          )}
           {r.diagnosis && (
             <div className="col-span-2">
               <span className="text-zinc-500">{t('record.rx.diagnosis')}: </span>

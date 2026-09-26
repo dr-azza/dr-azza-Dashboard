@@ -7,6 +7,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Text } from '@/components/catalyst/text'
 import { attention, findPatient, formResponses, patients, reminders, schedule } from '@/data/mock'
 import { useLang } from '@/i18n'
+import { FEATURES } from '@/lib/features'
 import { pregnancyInfo } from '@azza/shared'
 import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/16/solid'
 import { useMemo } from 'react'
@@ -189,12 +190,14 @@ export function OverviewPage() {
         <Card
           title={t('overview.dueSoon')}
           action={
-            <Link
-              href="/pregnancy"
-              className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300"
-            >
-              {t('common.viewAll')}
-            </Link>
+            FEATURES.followUp && (
+              <Link
+                href="/pregnancy"
+                className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300"
+              >
+                {t('common.viewAll')}
+              </Link>
+            )
           }
           bodyClassName="px-5 pb-2"
         >

@@ -36,6 +36,7 @@ import {
 } from '@heroicons/react/20/solid'
 import { UNAUTHORIZED_EVENT } from '@/lib/api'
 import { useLogout, useMe } from '@/lib/queries'
+import { FEATURES } from '@/lib/features'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
@@ -141,10 +142,12 @@ export function AppLayout() {
                 <UsersIcon />
                 <SidebarLabel>{t('nav.patients')}</SidebarLabel>
               </SidebarItem>
-              <SidebarItem href="/pregnancy" current={is('/pregnancy')}>
-                <HeartIcon />
-                <SidebarLabel>{t('nav.pregnancy')}</SidebarLabel>
-              </SidebarItem>
+              {FEATURES.followUp && (
+                <SidebarItem href="/pregnancy" current={is('/pregnancy')}>
+                  <HeartIcon />
+                  <SidebarLabel>{t('nav.pregnancy')}</SidebarLabel>
+                </SidebarItem>
+              )}
               <SidebarItem href="/appointments" current={is('/appointments')}>
                 <CalendarDaysIcon />
                 <SidebarLabel>{t('nav.appointments')}</SidebarLabel>

@@ -7,19 +7,17 @@ import type {
   AttachmentKindCode,
   CaseTypeDto,
   CreateCaseTypeInput,
+  CreateHistoryEntryInput,
   CreateNoteInput,
   CreatePatientInput,
   CreatePaymentInput,
   CreatePregnancyInput,
   CreatePrescriptionInput,
   CreateVisitInput,
+  HistoryEntryDto,
   LoginInput,
-  MedicalHistoryDto,
-  MedicalHistoryInput,
   MeDto,
   NoteDto,
-  ObstetricEntryDto,
-  ObstetricEntryInput,
   Page,
   PatientDto,
   PatientListItemDto,
@@ -32,6 +30,7 @@ import type {
   TimelineEventDto,
   UpdateAppointmentInput,
   UpdateCaseTypeInput,
+  UpdateHistoryEntryInput,
   UpdatePatientInput,
   VisitDto,
 } from '@azza/shared'
@@ -165,9 +164,8 @@ const part = <T>(id: string, name: string, path: string) =>
 export const useTimeline = (id: string) => useQuery(part<TimelineEventDto[]>(id, 'timeline', '/timeline'))
 export const useVisits = (id: string) => useQuery(part<VisitDto[]>(id, 'visits', '/visits'))
 export const usePregnancies = (id: string) => useQuery(part<PregnancyDto[]>(id, 'pregnancies', '/pregnancies'))
-export const useMedicalHistory = (id: string) => useQuery(part<MedicalHistoryDto>(id, 'history', '/medical-history'))
-export const useObstetricHistory = (id: string) =>
-  useQuery(part<ObstetricEntryDto[]>(id, 'obstetric', '/obstetric-history'))
+export const useHistoryEntries = (id: string) =>
+  useQuery(part<HistoryEntryDto[]>(id, 'history-entries', '/history-entries'))
 export const usePrescriptions = (id: string) => useQuery(part<PrescriptionDto[]>(id, 'prescriptions', '/prescriptions'))
 export const usePayments = (id: string) => useQuery(part<PaymentsDto>(id, 'payments', '/payments'))
 export const useNotes = (id: string) => useQuery(part<NoteDto[]>(id, 'notes', '/notes'))
@@ -227,19 +225,19 @@ export const useEndPregnancy = (id: string) =>
     { listsToo: true },
   )
 
-export const useSaveMedicalHistory = (id: string) =>
-  usePatientMutation(id, ['history'], (input: MedicalHistoryInput) =>
-    api<MedicalHistoryDto>(`/patients/${id}/medical-history`, { method: 'PUT', body: input }),
+export const useCreateHistoryEntry = (id: string) =>
+  usePatientMutation(id, ['history-entries'], (input: CreateHistoryEntryInput) =>
+    api<HistoryEntryDto>(`/patients/${id}/history-entries`, { body: input }),
   )
 
-export const useAddObstetricEntry = (id: string) =>
-  usePatientMutation(id, ['obstetric'], (input: ObstetricEntryInput) =>
-    api<ObstetricEntryDto>(`/patients/${id}/obstetric-history`, { body: input }),
+export const useUpdateHistoryEntry = (id: string) =>
+  usePatientMutation(id, ['history-entries'], ({ entryId, ...input }: UpdateHistoryEntryInput & { entryId: string }) =>
+    api<HistoryEntryDto>(`/patients/${id}/history-entries/${entryId}`, { method: 'PATCH', body: input }),
   )
 
-export const useRemoveObstetricEntry = (id: string) =>
-  usePatientMutation(id, ['obstetric'], (entryId: string) =>
-    api<void>(`/patients/${id}/obstetric-history/${entryId}`, { method: 'DELETE' }),
+export const useRemoveHistoryEntry = (id: string) =>
+  usePatientMutation(id, ['history-entries'], (entryId: string) =>
+    api<{ id: string }>(`/patients/${id}/history-entries/${entryId}`, { method: 'DELETE' }),
   )
 
 export const useCreatePrescription = (id: string) =>

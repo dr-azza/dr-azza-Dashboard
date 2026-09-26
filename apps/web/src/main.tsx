@@ -4,6 +4,7 @@ import '@/styles/tailwind.css'
 
 import { RouteError } from '@/components/app/route-error'
 import { ApiError } from '@/lib/api'
+import { FEATURES } from '@/lib/features'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -45,10 +46,14 @@ const router = createBrowserRouter([
                 path: '/patients/:id',
                 lazy: () => import('@/pages/patient/patient-page').then((m) => ({ Component: m.PatientPage })),
               },
-              {
-                path: '/pregnancy',
-                lazy: () => import('@/pages/pregnancy').then((m) => ({ Component: m.PregnancyPage })),
-              },
+              ...(FEATURES.followUp
+                ? [
+                    {
+                      path: '/pregnancy',
+                      lazy: () => import('@/pages/pregnancy').then((m) => ({ Component: m.PregnancyPage })),
+                    },
+                  ]
+                : []),
               {
                 path: '/appointments',
                 lazy: () => import('@/pages/appointments').then((m) => ({ Component: m.AppointmentsPage })),

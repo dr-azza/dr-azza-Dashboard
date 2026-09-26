@@ -9,9 +9,10 @@ import { APPOINTMENT_ICONS, statusKey, statusTone } from '@/components/patient/l
 import { useLang } from '@/i18n'
 import { ApiError } from '@/lib/api'
 import { usePatient } from '@/lib/queries'
+import { FEATURES } from '@/lib/features'
 import type { PatientDto } from '@azza/shared'
 import * as Headless from '@headlessui/react'
-import { CalendarDaysIcon, ChevronLeftIcon, ExclamationTriangleIcon, PhoneIcon } from '@heroicons/react/16/solid'
+import { CalendarDaysIcon, ChevronLeftIcon, PhoneIcon } from '@heroicons/react/16/solid'
 import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
 import { ActivityTab } from './activity-tab'
@@ -23,17 +24,18 @@ import { OverviewTab } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
 import { PrescriptionsTab } from './prescriptions-tab'
 
-const TABS = [
+const ALL_TABS = [
   'overview',
+  'history',
   'followUp',
   'appointments',
-  'history',
   'prescriptions',
   'payments',
   'files',
   'activity',
 ] as const
-type Tab = (typeof TABS)[number]
+type Tab = (typeof ALL_TABS)[number]
+const TABS: readonly Tab[] = ALL_TABS.filter((key) => key !== 'followUp' || FEATURES.followUp)
 
 export function PatientPage() {
   const { id = '' } = useParams()
@@ -42,7 +44,7 @@ export function PatientPage() {
   const [params, setParams] = useSearchParams()
   const patient = usePatient(id)
   const [booking, setBooking] = useState(false)
-  const tab = (TABS as readonly string[]).includes(params.get('tab') ?? '') ? (params.get('tab') as Tab) : 'overview'
+  const tab = TABS.find((key) => key === params.get('tab')) ?? 'overview'
 
   if (patient.isPending) return <div className="h-64 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
   if (patient.isError) {
@@ -66,6 +68,26 @@ export function PatientPage() {
   }
 
   const p = patient.data
+  const panel = (key: Tab) => {
+    switch (key) {
+      case 'overview':
+        return <OverviewTab patientId={id} />
+      case 'history':
+        return <HistoryTab patientId={id} />
+      case 'followUp':
+        return <FollowUpTab patientId={id} />
+      case 'appointments':
+        return <AppointmentsTab patientId={id} />
+      case 'prescriptions':
+        return <PrescriptionsTab patient={p} />
+      case 'payments':
+        return <PaymentsTab patientId={id} />
+      case 'files':
+        return <FilesTab patientId={id} />
+      case 'activity':
+        return <ActivityTab patientId={id} />
+    }
+  }
   const selectTab = (key: Tab) =>
     setParams(
       (prev) => {
@@ -75,7 +97,6 @@ export function PatientPage() {
       },
       { replace: true },
     )
-  const severe = p.allergies.some((a) => a.severity === 'severe')
 
   return (
     <div className="space-y-6">
@@ -109,12 +130,6 @@ export function PatientPage() {
               </a>
               <ToneBadge tone={statusTone[p.status]}>{t(statusKey(p.status))}</ToneBadge>
               <ToneBadge tone="neutral">{l(p.caseType.name)}</ToneBadge>
-              {p.gravida > 0 && <ToneBadge tone="neutral">{t('record.gp', { g: p.gravida, p: p.para })}</ToneBadge>}
-              {p.bloodGroup && (
-                <ToneBadge tone="neutral">
-                  <bdi>{p.bloodGroup}</bdi>
-                </ToneBadge>
-              )}
               {p.activePregnancy && (
                 <ToneBadge tone="info">
                   {t('common.ga', { w: p.activePregnancy.weeks, d: p.activePregnancy.days })}
@@ -138,36 +153,10 @@ export function PatientPage() {
           <NextAppointment appointment={p.nextAppointment} onOpen={() => selectTab('appointments')} />
         )}
 
-        {/* Allergies are shown on every tab, always: they change what may be prescribed. */}
-        <div
-          className={
-            p.allergies.length
-              ? `mt-5 flex items-center gap-2 rounded-lg px-3 py-2 text-sm/6 font-semibold ring-1 ${
-                  severe
-                    ? 'bg-red-50 text-red-800 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900'
-                    : 'bg-amber-50 text-amber-900 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900'
-                }`
-              : 'mt-5 text-sm/6 text-zinc-500 dark:text-zinc-400'
-          }
-        >
-          {p.allergies.length ? (
-            <>
-              <ExclamationTriangleIcon className="size-4 shrink-0" />
-              {t('record.allergyAlert', {
-                list: p.allergies
-                  .map((a) => `${a.substance} (${t(`record.history.severities.${a.severity}`)})`)
-                  .join(', '),
-              })}
-            </>
-          ) : (
-            t('record.noAllergies')
-          )}
-        </div>
-
         <dl className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {(
             [
-              ['visits', p.totals.visits],
+              ['historyEntries', p.totals.historyEntries],
               ['prescriptions', p.totals.prescriptions],
               ['files', p.totals.files],
               ['paid', fmt.money(p.totals.paid)],
@@ -193,30 +182,9 @@ export function PatientPage() {
           ))}
         </Headless.TabList>
         <Headless.TabPanels className="pt-6">
-          <Headless.TabPanel>
-            <OverviewTab patientId={id} />
-          </Headless.TabPanel>
-          <Headless.TabPanel>
-            <FollowUpTab patientId={id} />
-          </Headless.TabPanel>
-          <Headless.TabPanel>
-            <AppointmentsTab patientId={id} />
-          </Headless.TabPanel>
-          <Headless.TabPanel>
-            <HistoryTab patientId={id} />
-          </Headless.TabPanel>
-          <Headless.TabPanel>
-            <PrescriptionsTab patient={p} />
-          </Headless.TabPanel>
-          <Headless.TabPanel>
-            <PaymentsTab patientId={id} />
-          </Headless.TabPanel>
-          <Headless.TabPanel>
-            <FilesTab patientId={id} />
-          </Headless.TabPanel>
-          <Headless.TabPanel>
-            <ActivityTab patientId={id} />
-          </Headless.TabPanel>
+          {TABS.map((key) => (
+            <Headless.TabPanel key={key}>{panel(key)}</Headless.TabPanel>
+          ))}
         </Headless.TabPanels>
       </Headless.TabGroup>
       {booking && <AppointmentPanel open patientId={id} onClose={() => setBooking(false)} />}

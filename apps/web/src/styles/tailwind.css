@@ -78,3 +78,64 @@
     background-color: var(--color-zinc-950);
   }
 }
+
+/*
+ * Rich text (history entries): shared by the editor and the read view so what you type is what
+ * you see. Each top-level block takes its own direction from its first letters, so Arabic and
+ * English paragraphs can sit in one entry.
+ */
+@layer components {
+  .rich-text {
+    @apply text-base/7 text-zinc-800 sm:text-sm/6 dark:text-zinc-200;
+    overflow-wrap: anywhere;
+
+    /* Blocks carry dir="auto" (set by the editor and the renderer); align to their own start. */
+    & :where(p, h2, h3, ul, ol, blockquote) {
+      text-align: start;
+    }
+    & > * + * {
+      @apply mt-3;
+    }
+    & h2 {
+      @apply mt-5 text-base/7 font-semibold text-zinc-950 first:mt-0 dark:text-white;
+    }
+    & h3 {
+      @apply mt-4 text-sm/6 font-semibold text-brand-800 first:mt-0 dark:text-brand-300;
+    }
+    & strong {
+      @apply font-semibold text-zinc-950 dark:text-white;
+    }
+    & ul {
+      @apply list-disc ps-5;
+    }
+    & ol {
+      @apply list-decimal ps-5;
+    }
+    & li + li {
+      @apply mt-1;
+    }
+    & li > p {
+      @apply m-0;
+    }
+    & li::marker {
+      @apply text-zinc-400;
+    }
+    & blockquote {
+      @apply border-s-2 border-brand-300 ps-3 text-zinc-600 dark:border-brand-700 dark:text-zinc-400;
+    }
+    & hr {
+      @apply my-5 border-zinc-950/10 dark:border-white/10;
+    }
+    & a {
+      @apply font-medium text-brand-700 underline decoration-brand-300 underline-offset-2 dark:text-brand-300;
+    }
+    & code {
+      @apply rounded bg-zinc-100 px-1 py-0.5 text-[0.9em] dark:bg-white/10;
+    }
+    /* Editor placeholder (Tiptap marks the empty first block). */
+    & p.is-editor-empty:first-child::before {
+      content: attr(data-placeholder);
+      @apply pointer-events-none float-start h-0 text-zinc-400 dark:text-zinc-500;
+    }
+  }
+}
