@@ -4,7 +4,15 @@ import globals from 'globals'
 import tseslint from 'typescript-eslint'
 
 export default tseslint.config(
-  { ignores: ['**/dist/**', '**/.turbo/**', 'catalyst-ui-kit/**', 'apps/web/src/components/catalyst/**'] },
+  {
+    ignores: [
+      '**/dist/**',
+      '**/.turbo/**',
+      'catalyst-ui-kit/**',
+      'apps/web/src/components/catalyst/**',
+      'apps/api/src/generated/**',
+    ],
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {
@@ -17,8 +25,14 @@ export default tseslint.config(
     },
   },
   {
-    files: ['scripts/**/*.{js,mjs}', '*.config.{js,ts}', 'apps/web/vite.config.ts'],
+    files: ['scripts/**/*.{js,mjs}', '**/*.config.{js,ts}', 'apps/api/**/*.ts'],
     languageOptions: { globals: globals.node },
+  },
+  {
+    // NestJS injects constructor parameters by their runtime class (decorator metadata), so those
+    // imports must stay value imports. This tells the type-import rule about it.
+    files: ['apps/api/**/*.ts'],
+    languageOptions: { parserOptions: { emitDecoratorMetadata: true, experimentalDecorators: true } },
   },
   {
     files: ['**/*.{ts,tsx}'],

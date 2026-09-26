@@ -17,8 +17,10 @@ The UI uses the [Catalyst UI Kit](https://catalyst.tailwindui.com), a paid Tailw
 pnpm install
 pnpm setup:catalyst # once, and again after updating the kit
 pnpm dev            # web dashboard at http://localhost:5173
+pnpm dev:api        # API at http://localhost:4100/api (docs at /api/docs), see "API" below
 pnpm build          # build everything (cached by Turborepo)
 pnpm typecheck      # type-check every package
+pnpm test           # unit and API tests (Vitest)
 pnpm lint           # ESLint
 pnpm format         # Prettier (sorts Tailwind classes too)
 ```
@@ -30,7 +32,7 @@ Requires Node 20.19+ (see `.nvmrc`) and pnpm 10.
 ```
 apps/
   web/              React 19 + Vite + Tailwind v4 dashboard (@azza/web)
-  api/              (next) Node + Postgres API
+  api/              NestJS 11 (Fastify) + Prisma 7 + PostgreSQL API (@azza/api)
   mobile/           (later) patient app
 packages/
   shared/           Domain types, pregnancy maths and clinical flag rules (@azza/shared)
@@ -43,7 +45,26 @@ catalyst-ui-kit/    Your licensed Catalyst download (git-ignored)
 
 Anything that the web app, the API and the mobile app must agree on lives in `packages/`. That includes what counts as high blood pressure, how gestational age is calculated, the translations and the data shapes. Apps never import from each other.
 
-Internal packages are consumed as TypeScript source (`exports` points to `src/index.ts`), so there is no build step between packages and edits show up instantly in dev.
+Internal packages are built with tsdown to ESM + CJS in `dist/` for Node (the API). The web app, the type checker and the tests read the TypeScript source directly through the custom `source` export condition, so edits show up instantly without rebuilding. Relative imports inside packages use `.js` extensions, as Node's ESM rules require.
+
+## API
+
+Stack: NestJS 11 on Fastify, Prisma 7 with the `pg` driver adapter, PostgreSQL 17 and Zod validation (`nestjs-zod`).
+
+```sh
+cp apps/api/.env.example apps/api/.env
+pnpm db:up                                   # Postgres 17 in Docker on localhost:5440
+pnpm --filter @azza/api db:migrate           # apply migrations
+pnpm --filter @azza/api db:seed              # sample clinic, staff and patients (fictional)
+pnpm dev:api
+```
+
+- **Routes** are versioned under `/api/v1/…`. Health is at `/api/health`, and OpenAPI docs are at `/api/docs` (not served in production). The mobile app can generate its client from `/api/docs-json`.
+- **Schema:** `apps/api/prisma/schema.prisma`. Every clinical record belongs to a clinic (multi-clinic ready), IDs are UUIDv7, patients are archived rather than deleted, form links store only a hash of their token, and there is an append-only `audit_logs` table.
+- **Clinical rules** (blood-pressure limits, red-flag symptoms, pregnancy dating) come from `@azza/shared`, so the API, the web form and the mobile app always agree. `POST /api/v1/checkins/evaluate` exposes them.
+- **Environment** is validated at startup (`src/config/env.ts`). The API refuses to start with missing or invalid config.
+- **Security:** Helmet headers, CORS limited to `CORS_ORIGINS`, rate limiting (300 requests per minute per IP) and a 1 MB body limit.
+- **Not yet built:** staff authentication and role-based access. Until it exists, no endpoint returns patient data.
 
 ## Web app notes
 

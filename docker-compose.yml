@@ -1,0 +1,21 @@
+# Local development services. Run: docker compose up -d
+services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: azzah
+      POSTGRES_PASSWORD: azzah_dev_only
+      POSTGRES_DB: azzah
+    ports:
+      - '5440:5432' # 5440 on the host so it doesn't clash with other local Postgres instances
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U azzah -d azzah']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:

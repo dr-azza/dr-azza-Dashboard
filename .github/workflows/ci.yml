@@ -40,5 +40,8 @@ jobs:
       - name: Typecheck (all packages except web)
         run: pnpm turbo run typecheck --filter='!@azza/web'
 
+      - name: Test (all packages except web)
+        run: pnpm turbo run test --filter='!@azza/web'
+
       - name: Build (all packages except web)
         run: pnpm turbo run build --filter='!@azza/web'
