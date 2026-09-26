@@ -1,4 +1,4 @@
 {
   "extends": "@azza/tsconfig/base.json",
-  "include": ["src"]
+  "include": ["src", "tsdown.config.ts"]
 }

@@ -1,5 +1,5 @@
-export { ar } from './ar'
-export { en, type Messages } from './en'
+export { ar } from './ar.js'
+export { en, type Messages } from './en.js'
 
 /** Locale for dates and numbers. Arabic keeps Latin digits, which staff read faster in clinical values. */
 export function localeFor(lang: 'en' | 'ar') {

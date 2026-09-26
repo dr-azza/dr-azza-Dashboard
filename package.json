@@ -4,11 +4,15 @@
   "type": "module",
   "scripts": {
     "dev": "turbo run dev --filter=@azza/web",
+    "dev:api": "turbo run dev --filter=@azza/api",
     "build": "turbo run build",
+    "test": "turbo run test",
     "typecheck": "turbo run typecheck",
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "db:up": "docker compose up -d",
+    "db:down": "docker compose down",
     "setup:catalyst": "node scripts/setup-catalyst.mjs"
   },
   "engines": {
@@ -22,8 +26,10 @@
     "globals": "^17.12.0",
     "prettier": "^3.9.9",
     "prettier-plugin-tailwindcss": "^0.8.1",
+    "tsdown": "^0.23.0",
     "turbo": "^2.11.4",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.70.1"
+    "typescript-eslint": "^8.70.1",
+    "vitest": "^5.0.2"
   }
 }

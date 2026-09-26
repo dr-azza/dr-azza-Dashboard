@@ -1,5 +1,5 @@
-import type { Patient } from './types'
-import { addDays, dueDate, gestationalAge, trimester } from './pregnancy'
+import type { Patient } from './types.js'
+import { addDays, dueDate, gestationalAge, trimester } from './pregnancy.js'
 
 export interface PregnancyInfo {
   lmp: Date

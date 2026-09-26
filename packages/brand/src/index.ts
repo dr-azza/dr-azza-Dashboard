@@ -1,2 +1,2 @@
-export * from './colors'
-export * from './logo'
+export * from './colors.js'
+export * from './logo.js'
