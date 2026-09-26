@@ -35,6 +35,7 @@ model Clinic {
   reminders     Reminder[]
   auditLogs     AuditLog[]
   caseTypes     CaseType[]
+  appointments  Appointment[]
 
   @@map("clinics")
 }
@@ -61,14 +62,16 @@ model StaffMember {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  clinic          Clinic         @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  visits          Visit[]
-  reviewedAnswers FormResponse[]
-  sessions        Session[]
-  prescriptions   Prescription[]
-  payments        Payment[]
-  attachments     Attachment[]
-  notes           ClinicalNote[]
+  clinic               Clinic         @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  visits               Visit[]
+  reviewedAnswers      FormResponse[]
+  sessions             Session[]
+  prescriptions        Prescription[]
+  payments             Payment[]
+  attachments          Attachment[]
+  notes                ClinicalNote[]
+  appointmentsAssigned Appointment[]  @relation("AppointmentAssignee")
+  appointmentsCreated  Appointment[]  @relation("AppointmentCreator")
 
   @@unique([clinicId, email])
   @@map("staff_members")
@@ -143,6 +146,7 @@ model Patient {
   payments         Payment[]
   attachments      Attachment[]
   notes            ClinicalNote[]
+  appointments     Appointment[]
 
   @@unique([clinicId, fileNumber])
   @@index([clinicId, status])
@@ -566,4 +570,59 @@ model ClinicalNote {
 
   @@index([patientId, createdAt(sort: Desc)])
   @@map("clinical_notes")
+}
+
+// ---------------------------------------------------------------------------
+// Appointments
+// ---------------------------------------------------------------------------
+
+enum AppointmentType {
+  VISIT
+  CALL
+  SCAN
+  LAB
+  FOLLOW_UP
+  OTHER
+
+  @@map("appointment_type")
+}
+
+enum AppointmentStatus {
+  SCHEDULED
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+
+  @@map("appointment_status")
+}
+
+/// Anything booked with a patient: a clinic visit, a phone call, a scan, a lab test…
+model Appointment {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  clinicId        String            @map("clinic_id") @db.Uuid
+  patientId       String            @map("patient_id") @db.Uuid
+  type            AppointmentType
+  /// Optional short title, e.g. "Discuss scan results". The type gives the default wording.
+  title           String?
+  startsAt        DateTime          @map("starts_at") @db.Timestamptz(3)
+  durationMinutes Int               @default(15) @map("duration_minutes")
+  status          AppointmentStatus @default(SCHEDULED)
+  notes           String?
+  assignedToId    String?           @map("assigned_to_id") @db.Uuid
+  createdById     String?           @map("created_by_id") @db.Uuid
+  /// When the status last changed away from SCHEDULED (done, cancelled or no-show).
+  closedAt        DateTime?         @map("closed_at") @db.Timestamptz(3)
+  cancelReason    String?           @map("cancel_reason")
+  createdAt       DateTime          @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime          @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic     Clinic       @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  patient    Patient      @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  assignedTo StaffMember? @relation("AppointmentAssignee", fields: [assignedToId], references: [id], onDelete: SetNull)
+  createdBy  StaffMember? @relation("AppointmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([clinicId, startsAt])
+  @@index([patientId, startsAt(sort: Desc)])
+  @@index([assignedToId, startsAt])
+  @@map("appointments")
 }

@@ -4,13 +4,18 @@ import { Button } from '@/components/catalyst/button'
 import { Heading } from '@/components/catalyst/heading'
 import { Link } from '@/components/catalyst/link'
 import { Text } from '@/components/catalyst/text'
+import { APPOINTMENT_ICONS, AppointmentPanel } from '@/components/patient/appointment-panel'
 import { statusKey, statusTone } from '@/components/patient/labels'
 import { useLang } from '@/i18n'
 import { ApiError } from '@/lib/api'
 import { usePatient } from '@/lib/queries'
+import type { PatientDto } from '@azza/shared'
 import * as Headless from '@headlessui/react'
-import { ChevronLeftIcon, ExclamationTriangleIcon, PhoneIcon } from '@heroicons/react/16/solid'
+import { CalendarDaysIcon, ChevronLeftIcon, ExclamationTriangleIcon, PhoneIcon } from '@heroicons/react/16/solid'
+import { useState } from 'react'
 import { useParams, useSearchParams } from 'react-router'
+import { ActivityTab } from './activity-tab'
+import { AppointmentsTab } from './appointments-tab'
 import { FilesTab } from './files-tab'
 import { FollowUpTab } from './follow-up-tab'
 import { HistoryTab } from './history-tab'
@@ -18,7 +23,16 @@ import { OverviewTab } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
 import { PrescriptionsTab } from './prescriptions-tab'
 
-const TABS = ['overview', 'followUp', 'history', 'prescriptions', 'payments', 'files'] as const
+const TABS = [
+  'overview',
+  'followUp',
+  'appointments',
+  'history',
+  'prescriptions',
+  'payments',
+  'files',
+  'activity',
+] as const
 type Tab = (typeof TABS)[number]
 
 export function PatientPage() {
@@ -27,6 +41,7 @@ export function PatientPage() {
   const fmt = useFormat()
   const [params, setParams] = useSearchParams()
   const patient = usePatient(id)
+  const [booking, setBooking] = useState(false)
   const tab = (TABS as readonly string[]).includes(params.get('tab') ?? '') ? (params.get('tab') as Tab) : 'overview'
 
   if (patient.isPending) return <div className="h-64 animate-pulse rounded-xl bg-zinc-100 dark:bg-white/5" />
@@ -51,6 +66,15 @@ export function PatientPage() {
   }
 
   const p = patient.data
+  const selectTab = (key: Tab) =>
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        next.set('tab', key)
+        return next
+      },
+      { replace: true },
+    )
   const severe = p.allergies.some((a) => a.severity === 'severe')
 
   return (
@@ -98,11 +122,21 @@ export function PatientPage() {
               )}
             </div>
           </div>
-          <Button outline href={`tel:${p.phone}`}>
-            <PhoneIcon />
-            {t('common.call')}
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button outline href={`tel:${p.phone}`}>
+              <PhoneIcon />
+              {t('common.call')}
+            </Button>
+            <Button color="brand" onClick={() => setBooking(true)}>
+              <CalendarDaysIcon />
+              {t('record.appt.new')}
+            </Button>
+          </div>
         </div>
+
+        {p.nextAppointment && (
+          <NextAppointment appointment={p.nextAppointment} onOpen={() => selectTab('appointments')} />
+        )}
 
         {/* Allergies are shown on every tab, always: they change what may be prescribed. */}
         <div
@@ -147,19 +181,7 @@ export function PatientPage() {
         </dl>
       </section>
 
-      <Headless.TabGroup
-        selectedIndex={TABS.indexOf(tab)}
-        onChange={(i) =>
-          setParams(
-            (prev) => {
-              const next = new URLSearchParams(prev)
-              next.set('tab', TABS[i])
-              return next
-            },
-            { replace: true },
-          )
-        }
-      >
+      <Headless.TabGroup selectedIndex={TABS.indexOf(tab)} onChange={(i) => selectTab(TABS[i])}>
         <Headless.TabList className="flex gap-1 overflow-x-auto border-b border-zinc-950/10 dark:border-white/10">
           {TABS.map((key) => (
             <Headless.Tab
@@ -178,6 +200,9 @@ export function PatientPage() {
             <FollowUpTab patientId={id} />
           </Headless.TabPanel>
           <Headless.TabPanel>
+            <AppointmentsTab patientId={id} />
+          </Headless.TabPanel>
+          <Headless.TabPanel>
             <HistoryTab patientId={id} />
           </Headless.TabPanel>
           <Headless.TabPanel>
@@ -189,8 +214,34 @@ export function PatientPage() {
           <Headless.TabPanel>
             <FilesTab patientId={id} />
           </Headless.TabPanel>
+          <Headless.TabPanel>
+            <ActivityTab patientId={id} />
+          </Headless.TabPanel>
         </Headless.TabPanels>
       </Headless.TabGroup>
+      {booking && <AppointmentPanel open patientId={id} onClose={() => setBooking(false)} />}
     </div>
+  )
+}
+
+function NextAppointment({
+  appointment: a,
+  onOpen,
+}: {
+  appointment: NonNullable<PatientDto['nextAppointment']>
+  onOpen: () => void
+}) {
+  const { t } = useLang()
+  const fmt = useFormat()
+  const Icon = APPOINTMENT_ICONS[a.type]
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="mt-4 inline-flex items-center gap-2 rounded-full bg-brand-50 px-3 py-1 text-sm/6 font-medium text-brand-800 ring-1 ring-brand-200 hover:bg-brand-100 dark:bg-brand-950/50 dark:text-brand-200 dark:ring-brand-900"
+    >
+      <Icon className="size-4 shrink-0" />
+      {t('record.appt.next', { what: a.title || t(`record.appt.types.${a.type}`), when: fmt.dayTime(a.startsAt) })}
+    </button>
   )
 }

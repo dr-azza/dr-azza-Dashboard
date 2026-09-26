@@ -41,7 +41,11 @@ export class AuditInterceptor implements NestInterceptor {
           entity: meta.entity,
           entityId,
           ip: request.ip,
-          meta: params.patientId ? { patientId: params.patientId } : undefined,
+          meta: params.patientId
+            ? { patientId: params.patientId }
+            : meta.entity === 'patient' && resultId
+              ? { patientId: resultId }
+              : undefined,
         })
       }),
     )

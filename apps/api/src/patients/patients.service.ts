@@ -22,6 +22,7 @@ import {
 } from '../common/format'
 import { Prisma } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
+import { AppointmentsService } from '../appointments/appointments.service'
 import { CaseTypesService, toCaseTypeRef } from '../case-types/case-types.service'
 import { PatientScope, pregnancyFacts } from './patient-scope.service'
 
@@ -91,6 +92,7 @@ export class PatientsService {
     private readonly prisma: PrismaService,
     private readonly scope: PatientScope,
     private readonly caseTypes: CaseTypesService,
+    private readonly appointments: AppointmentsService,
   ) {}
 
   async list(staff: AuthStaff, query: ListPatientsQuery): Promise<Page<PatientListItemDto>> {
@@ -182,7 +184,10 @@ export class PatientsService {
         },
       },
     })
-    const paid = await this.prisma.payment.aggregate({ where: { patientId, voidedAt: null }, _sum: { amount: true } })
+    const [paid, next] = await Promise.all([
+      this.prisma.payment.aggregate({ where: { patientId, voidedAt: null }, _sum: { amount: true } }),
+      this.appointments.next(patientId),
+    ])
     const births = p.obstetricHistory.filter((e) => e.outcome === 'LIVE_BIRTH' || e.outcome === 'STILLBIRTH').length
 
     return {
@@ -200,6 +205,9 @@ export class PatientsService {
         files: p._count.attachments,
         paid: decimalString(paid._sum.amount) ?? '0.00',
       },
+      nextAppointment: next
+        ? { id: next.id, type: next.type, title: next.title, startsAt: next.startsAt.toISOString() }
+        : null,
     }
   }
 

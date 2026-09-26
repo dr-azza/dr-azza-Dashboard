@@ -1,4 +1,7 @@
 import { Module } from '@nestjs/common'
+import { AppointmentsController, PatientAppointmentsController } from '../appointments/appointments.controller'
+import { AppointmentsService } from '../appointments/appointments.service'
+import { ActivityService } from './activity.service'
 import { AttachmentsController } from './attachments.controller'
 import { AttachmentsService } from './attachments.service'
 import { FollowUpController } from './follow-up.controller'
@@ -15,7 +18,7 @@ import { PaymentsService } from './payments.service'
 import { PrescriptionsController } from './prescriptions.controller'
 import { PrescriptionsService } from './prescriptions.service'
 
-/** The patient record: identity, history, follow-up, prescriptions, payments, files and notes. */
+/** The patient record: identity, history, follow-up, prescriptions, payments, files, notes, appointments and activity. */
 @Module({
   controllers: [
     PatientsController,
@@ -25,6 +28,8 @@ import { PrescriptionsService } from './prescriptions.service'
     PaymentsController,
     AttachmentsController,
     NotesController,
+    PatientAppointmentsController,
+    AppointmentsController,
   ],
   providers: [
     PatientScope,
@@ -35,6 +40,8 @@ import { PrescriptionsService } from './prescriptions.service'
     PaymentsService,
     AttachmentsService,
     NotesService,
+    AppointmentsService,
+    ActivityService,
   ],
 })
 export class PatientsModule {}

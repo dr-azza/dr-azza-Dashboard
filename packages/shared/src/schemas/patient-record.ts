@@ -202,6 +202,58 @@ export const CreateNoteSchema = z.object({
 })
 export type CreateNoteInput = z.input<typeof CreateNoteSchema>
 
+// --- Appointments ------------------------------------------------------------------
+
+export const APPOINTMENT_TYPES = ['VISIT', 'CALL', 'SCAN', 'LAB', 'FOLLOW_UP', 'OTHER'] as const
+export const APPOINTMENT_STATUSES = ['SCHEDULED', 'COMPLETED', 'CANCELLED', 'NO_SHOW'] as const
+export const APPOINTMENT_DURATIONS = [5, 10, 15, 20, 30, 45, 60, 90] as const
+
+export const CreateAppointmentSchema = z.object({
+  type: z.enum(APPOINTMENT_TYPES),
+  title: optionalText(120),
+  startsAt: z.iso.datetime({ offset: true }),
+  durationMinutes: z.number().int().min(5).max(480).default(15),
+  assignedToId: z.uuid().nullish(),
+  notes: optionalText(1000),
+})
+export type CreateAppointmentInput = z.input<typeof CreateAppointmentSchema>
+
+export const UpdateAppointmentSchema = z
+  .object({
+    type: z.enum(APPOINTMENT_TYPES),
+    title: optionalText(120),
+    startsAt: z.iso.datetime({ offset: true }),
+    durationMinutes: z.number().int().min(5).max(480),
+    assignedToId: z.uuid().nullable(),
+    notes: optionalText(1000),
+    status: z.enum(APPOINTMENT_STATUSES),
+    cancelReason: optionalText(300),
+  })
+  .partial()
+export type UpdateAppointmentInput = z.input<typeof UpdateAppointmentSchema>
+
+export const ListAppointmentsQuerySchema = z.object({
+  from: z.iso.datetime({ offset: true }).optional(),
+  to: z.iso.datetime({ offset: true }).optional(),
+  status: z.enum(APPOINTMENT_STATUSES).optional(),
+  assignedToId: z.uuid().optional(),
+  limit: z.coerce.number().int().min(1).max(500).default(200),
+})
+export type ListAppointmentsQuery = z.output<typeof ListAppointmentsQuerySchema>
+
+// --- Activity log --------------------------------------------------------------------
+
+export const ActivityQuerySchema = z.object({
+  /** Include read-only events (who opened the record, downloaded a file). */
+  includeViews: z
+    .enum(['true', 'false'])
+    .default('false')
+    .transform((v) => v === 'true'),
+  cursor: z.string().optional(),
+  limit: z.coerce.number().int().min(1).max(100).default(50),
+})
+export type ActivityQuery = z.output<typeof ActivityQuerySchema>
+
 // --- Auth ------------------------------------------------------------------------
 
 export const LoginSchema = z.object({

@@ -10,6 +10,7 @@ import { ConfigModule } from './config/config.module'
 import { HealthModule } from './health/health.module'
 import { PatientsModule } from './patients/patients.module'
 import { PrismaModule } from './prisma/prisma.module'
+import { StaffModule } from './staff/staff.module'
 import { StorageModule } from './storage/storage.module'
 
 @Module({
@@ -23,6 +24,7 @@ import { StorageModule } from './storage/storage.module'
     HealthModule,
     CheckinsModule,
     PatientsModule,
+    StaffModule,
   ],
   providers: [
     // Every request body, query and param with a Zod DTO is validated before reaching a handler.

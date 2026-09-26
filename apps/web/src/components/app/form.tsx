@@ -55,6 +55,7 @@ export function useFormat() {
         hour: '2-digit',
         minute: '2-digit',
       }),
+    time: (iso: string) => formatDate(new Date(iso), { hour: '2-digit', minute: '2-digit' }),
     bytes: (n: number) =>
       n < 1024 * 1024 ? `${Math.max(1, Math.round(n / 1024))} KB` : `${(n / 1024 / 1024).toFixed(1)} MB`,
   }
