@@ -1,4 +1,5 @@
-dist
-src/generated
-.env
-storage
+/dist
+/src/generated
+/.env
+# Local file uploads in development (not the src/storage module)
+/storage
