@@ -1,0 +1,14 @@
+node_modules
+dist
+.turbo
+.env
+.env.*
+!.env.example
+.DS_Store
+*.log
+coverage
+
+# Catalyst UI Kit (Tailwind Plus licence: source may not be published).
+# Put your licensed kit in ./catalyst-ui-kit and run `pnpm setup:catalyst`.
+catalyst-ui-kit/
+apps/web/src/components/catalyst/

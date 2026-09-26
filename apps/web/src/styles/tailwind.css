@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+
+@import '@fontsource/ibm-plex-sans-arabic/400.css';
+@import '@fontsource/ibm-plex-sans-arabic/500.css';
+@import '@fontsource/ibm-plex-sans-arabic/600.css';
+@import '@fontsource/ibm-plex-sans-arabic/700.css';
+
+/* Dark mode follows the `.dark` class on <html>, set from the user's Light / Dark / System choice. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+ * AZZAH brand theme on top of Catalyst (values: packages/brand/src/colors.ts).
+ * - `brand` is built around the logo plum #9B176A (brand-600).
+ * - `zinc` is rebuilt from Space Cadet #25283D (zinc-900), so every Catalyst component
+ *   picks up the brand's neutral without editing its source; dark mode sits on Space Cadet.
+ * - The secondary palette is available as `melon`, `dogwood`, `seashell`, `champagne`, `peach`.
+ */
+@theme {
+  /* IBM Plex Sans Arabic ships matching Latin glyphs, so one family serves both languages. */
+  --font-sans: 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+  --font-display: 'IBM Plex Sans Arabic', ui-sans-serif, system-ui, sans-serif;
+
+  --color-brand-50: #fdf2f8;
+  --color-brand-100: #fae4f1;
+  --color-brand-200: #f4c7e1;
+  --color-brand-300: #ea9cc8;
+  --color-brand-400: #d766a6;
+  --color-brand-500: #bc3787;
+  --color-brand-600: #9b176a;
+  --color-brand-700: #82135a;
+  --color-brand-800: #6b124b;
+  --color-brand-900: #58133f;
+  --color-brand-950: #360622;
+
+  --color-zinc-50: #f7f7f9;
+  --color-zinc-100: #eff0f4;
+  --color-zinc-200: #e1e2e9;
+  --color-zinc-300: #c9cbd6;
+  --color-zinc-400: #9a9db0;
+  --color-zinc-500: #6d7087;
+  --color-zinc-600: #51546a;
+  --color-zinc-700: #3d4055;
+  --color-zinc-800: #2e3146;
+  --color-zinc-900: #25283d;
+  --color-zinc-950: #171926;
+
+  --color-melon: #ffb5a7;
+  --color-dogwood: #fcd5ce;
+  --color-seashell: #f8edeb;
+  --color-champagne: #f9dcc4;
+  --color-peach: #fec89a;
+}
+
+/* Brand rule: Latin headlines are UPPERCASE with 100 tracking. Arabic has no case, so it is left as is. */
+@utility headline {
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  &:where([dir='rtl'], [dir='rtl'] *) {
+    text-transform: none;
+    letter-spacing: 0;
+  }
+}
+
+
+@layer base {
+  /* Match the layout background so there is no white flash before React renders. */
+  html {
+    background-color: var(--color-seashell);
+  }
+  html.dark {
+    background-color: var(--color-zinc-950);
+  }
+}
