@@ -1,5 +1,9 @@
 @import 'tailwindcss';
 
+/* The Catalyst components are git-ignored (licensed code), and Tailwind skips git-ignored files
+   when detecting classes, so the folder has to be registered explicitly. */
+@source '../components/catalyst';
+
 @import '@fontsource/ibm-plex-sans-arabic/400.css';
 @import '@fontsource/ibm-plex-sans-arabic/500.css';
 @import '@fontsource/ibm-plex-sans-arabic/600.css';
@@ -62,6 +66,10 @@
 }
 
 @layer base {
+  /* Browsers centre <th> by default; table headers line up with their column instead (both directions). */
+  th {
+    text-align: start;
+  }
   /* Match the layout background so there is no white flash before React renders. */
   html {
     background-color: var(--color-seashell);

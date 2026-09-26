@@ -8,7 +8,7 @@ export const en = {
     openMenu: 'Open navigation',
   },
   theme: {
-    label: 'Appearance',
+    label: 'Theme',
     light: 'Light',
     dark: 'Dark',
     system: 'System',
