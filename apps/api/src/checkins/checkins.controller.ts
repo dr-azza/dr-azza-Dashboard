@@ -3,6 +3,7 @@ import { Body, Controller, HttpCode, Post } from '@nestjs/common'
 import { ApiOkResponse, ApiTags } from '@nestjs/swagger'
 import { createZodDto } from 'nestjs-zod'
 import { z } from 'zod'
+import { Public } from '../auth/decorators'
 
 const EvaluateCheckinSchema = z.object({
   symptoms: z.array(z.enum(CHECKIN_SYMPTOMS)).max(CHECKIN_SYMPTOMS.length).default([]),
@@ -25,6 +26,7 @@ class EvaluationDto extends createZodDto(EvaluationSchema) {}
  */
 @ApiTags('checkins')
 @Controller('checkins')
+@Public()
 export class CheckinsController {
   @Post('evaluate')
   @HttpCode(200)

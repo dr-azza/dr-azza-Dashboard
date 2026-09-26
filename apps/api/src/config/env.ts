@@ -14,6 +14,10 @@ const EnvSchema = z.object({
         .map((s) => s.trim())
         .filter(Boolean),
     ),
+  /** How long a staff session stays valid without activity. */
+  SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(12),
+  /** Local folder for uploaded files in development. Production will use object storage. */
+  STORAGE_DIR: z.string().default('./storage'),
 })
 
 export type Env = z.infer<typeof EnvSchema>

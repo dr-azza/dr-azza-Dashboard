@@ -17,6 +17,19 @@ jobs:
     name: Lint, format, typecheck, build
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: azzah
+          POSTGRES_PASSWORD: ci_only
+          POSTGRES_DB: azzah_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U azzah -d azzah_test"
+          --health-interval 5s --health-timeout 3s --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgresql://azzah:ci_only@localhost:5432/azzah_test?schema=public
     steps:
       - uses: actions/checkout@v7
 
@@ -42,6 +55,13 @@ jobs:
 
       - name: Test (all packages except web)
         run: pnpm turbo run test --filter='!@azza/web'
+
+      - name: Integration tests (API against PostgreSQL)
+        run: |
+          pnpm --filter @azza/api exec prisma migrate deploy
+          pnpm --filter @azza/api exec vitest run test/integration
+        env:
+          DATABASE_URL: ${{ env.TEST_DATABASE_URL }}
 
       - name: Build (all packages except web)
         run: pnpm turbo run build --filter='!@azza/web'

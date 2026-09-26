@@ -2,9 +2,11 @@ import { Controller, Get, HttpStatus, Res, VERSION_NEUTRAL } from '@nestjs/commo
 import { ApiOkResponse, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger'
 import type { FastifyReply } from 'fastify'
 import { PrismaService } from '../prisma/prisma.service'
+import { Public } from '../auth/decorators'
 
 @ApiTags('health')
 @Controller({ path: 'health', version: VERSION_NEUTRAL })
+@Public()
 export class HealthController {
   constructor(private readonly prisma: PrismaService) {}
 

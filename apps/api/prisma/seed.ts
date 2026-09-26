@@ -2,6 +2,7 @@
  * Development seed: one clinic, its staff and a few sample patients. All data is fictional.
  * Run with `pnpm --filter @azza/api db:seed`. Safe to re-run: records are upserted by natural keys.
  */
+import { hash } from '@node-rs/argon2'
 import { PrismaPg } from '@prisma/adapter-pg'
 import { PrismaClient } from '../src/generated/prisma/client'
 
@@ -9,13 +10,15 @@ const url = process.env.DATABASE_URL
 if (!url) throw new Error('DATABASE_URL is not set (copy apps/api/.env.example to .env)')
 if (process.env.NODE_ENV === 'production') throw new Error('Refusing to seed a production database')
 
+const staffPassword = process.env.SEED_STAFF_PASSWORD ?? ''
+if (staffPassword.length < 10) throw new Error('Set SEED_STAFF_PASSWORD (10+ characters) in apps/api/.env')
+
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
 
+/** A calendar day `n` days before today, as the UTC-midnight Date that Prisma stores in DATE columns. */
 const daysAgo = (n: number) => {
-  const d = new Date()
-  d.setHours(0, 0, 0, 0)
-  d.setDate(d.getDate() - n)
-  return d
+  const now = new Date()
+  return new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate() - n))
 }
 
 async function main() {
@@ -30,12 +33,15 @@ async function main() {
     { email: 'nurse@azzah.test', fullName: 'Nurse (sample)', role: 'NURSE' as const },
     { email: 'reception@azzah.test', fullName: 'Reception (sample)', role: 'RECEPTION' as const },
   ]
+  const passwordHash = await hash(staffPassword, { memoryCost: 19_456, timeCost: 2, parallelism: 1 })
+  const staffIds: Record<string, string> = {}
   for (const s of staff) {
-    await prisma.staffMember.upsert({
+    const row = await prisma.staffMember.upsert({
       where: { clinicId_email: { clinicId: clinic.id, email: s.email } },
-      update: {},
-      create: { ...s, clinicId: clinic.id },
+      update: { passwordHash },
+      create: { ...s, clinicId: clinic.id, passwordHash },
     })
+    staffIds[s.role] = row.id
   }
 
   type SeedPatient = {
@@ -103,6 +109,147 @@ async function main() {
       const { gaDays, ...details } = pregnancy
       await prisma.pregnancy.create({ data: { ...details, patientId: patient.id, lmp: daysAgo(gaDays) } })
     }
+  }
+
+  // A full record for one patient, so every tab of the patient file has something to show.
+  const rana = await prisma.patient.findUniqueOrThrow({
+    where: { clinicId_fileNumber: { clinicId: clinic.id, fileNumber: 'P-1187' } },
+    include: { pregnancies: true, visits: true },
+  })
+  const doctorId = staffIds.OWNER
+  if (!rana.visits.length) {
+    await prisma.patient.update({ where: { id: rana.id }, data: { dateOfBirth: new Date('1991-03-14T00:00:00Z') } })
+    await prisma.medicalHistory.upsert({
+      where: { patientId: rana.id },
+      update: {},
+      create: {
+        patientId: rana.id,
+        allergies: [{ substance: 'Penicillin', reaction: 'Rash', severity: 'moderate' }],
+        chronicConditions: [],
+        currentMedications: ['Ferrous sulfate 200 mg once daily'],
+        surgeries: [{ name: 'Cesarean section', year: 2023 }],
+        bloodGroup: 'O+',
+        familyHistory: 'Mother: type 2 diabetes',
+        smoking: false,
+        menarcheAge: 13,
+        cycleLengthDays: 28,
+        periodLengthDays: 5,
+        cycleRegular: true,
+        contraception: 'None (pregnant)',
+        updatedById: doctorId,
+      },
+    })
+    await prisma.obstetricHistoryEntry.createMany({
+      data: [
+        {
+          patientId: rana.id,
+          year: 2019,
+          outcome: 'LIVE_BIRTH',
+          deliveryMode: 'VAGINAL',
+          gestationWeeks: 39,
+          birthWeightG: 3200,
+        },
+        {
+          patientId: rana.id,
+          year: 2023,
+          outcome: 'LIVE_BIRTH',
+          deliveryMode: 'CESAREAN',
+          gestationWeeks: 38,
+          birthWeightG: 3400,
+          complications: 'Failure to progress',
+        },
+      ],
+    })
+    const pregnancyId = rana.pregnancies[0]?.id
+    const visit = (daysBack: number, v: Record<string, unknown>) => ({
+      patientId: rana.id,
+      pregnancyId,
+      recordedById: doctorId,
+      visitedAt: new Date(daysAgo(daysBack).getTime() + 10 * 60 * 60 * 1000),
+      ...v,
+    })
+    await prisma.visit.createMany({
+      data: [
+        visit(98, { weightKg: 68.4, systolic: 116, diastolic: 74, fetalHeartRate: 152, notes: 'Routine visit' }),
+        visit(70, {
+          weightKg: 70.1,
+          systolic: 118,
+          diastolic: 76,
+          fundalHeightCm: 20,
+          fetalHeartRate: 150,
+          notes: 'Anomaly scan normal',
+        }),
+        visit(42, {
+          weightKg: 72.0,
+          systolic: 122,
+          diastolic: 78,
+          fundalHeightCm: 24,
+          fetalHeartRate: 148,
+          notes: 'Routine visit, no concerns',
+        }),
+        visit(14, {
+          weightKg: 74.2,
+          systolic: 128,
+          diastolic: 82,
+          fundalHeightCm: 28,
+          fetalHeartRate: 142,
+          notes: 'Glucose test normal, Hb low, iron started',
+        }),
+        visit(0, {
+          systolic: 145,
+          diastolic: 95,
+          isPatientReport: true,
+          recordedById: null,
+          notes: 'Home reading from weekly form, with headache',
+        }),
+      ],
+    })
+    await prisma.prescription.create({
+      data: {
+        patientId: rana.id,
+        prescribedById: doctorId,
+        number: 'RX-SEED-0001',
+        issuedAt: daysAgo(14),
+        diagnosis: 'Iron deficiency anemia in pregnancy',
+        items: {
+          create: [
+            {
+              position: 0,
+              drugName: 'Ferrous sulfate',
+              dose: '200 mg',
+              frequency: 'Once daily',
+              duration: '30 days',
+              instructions: 'Take with orange juice, not with tea or milk',
+            },
+            {
+              position: 1,
+              drugName: 'Low-dose aspirin',
+              dose: '81 mg',
+              frequency: 'Once daily at night',
+              duration: 'Until 36 weeks',
+            },
+          ],
+        },
+      },
+    })
+    await prisma.payment.create({
+      data: {
+        patientId: rana.id,
+        receivedById: staffIds.RECEPTION,
+        amount: '600.00',
+        method: 'INSTAPAY',
+        purpose: 'Antenatal visit + ultrasound',
+        paidAt: daysAgo(14),
+      },
+    })
+    await prisma.clinicalNote.create({
+      data: {
+        patientId: rana.id,
+        authorId: doctorId,
+        pinned: true,
+        body: 'Previous C-section in 2023. Discuss VBAC vs repeat C-section at the 34-week visit. Recheck Hb at 34 weeks.',
+      },
+    })
   }
 
   console.log(`Seeded clinic "${clinic.name}" with ${staff.length} staff and ${patients.length} patients.`)
