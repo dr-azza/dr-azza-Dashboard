@@ -205,9 +205,15 @@ export class PatientsService {
 
   async update(staff: AuthStaff, patientId: string, input: UpdatePatientInput) {
     await this.scope.require(staff, patientId)
-    const caseTypeId = input.caseTypeId
-      ? (await this.caseTypes.requireAssignable(staff, input.caseTypeId)).id
-      : undefined
+    // Moving to a different case needs an active one; re-sending the current (even archived) case is fine.
+    const current = await this.prisma.patient.findUniqueOrThrow({
+      where: { id: patientId },
+      select: { caseTypeId: true },
+    })
+    const caseTypeId =
+      input.caseTypeId && input.caseTypeId !== current.caseTypeId
+        ? (await this.caseTypes.requireAssignable(staff, input.caseTypeId)).id
+        : undefined
     await this.prisma.patient.update({
       where: { id: patientId },
       data: {

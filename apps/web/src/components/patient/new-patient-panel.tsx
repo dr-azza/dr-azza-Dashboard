@@ -52,6 +52,7 @@ export function NewPatientPanel({ open, onClose }: { open: boolean; onClose: () 
       title={t('record.new.title')}
       description={t('record.new.description')}
       onSubmit={onSubmit}
+      noValidate
       actions={
         <>
           <Button plain onClick={onClose}>

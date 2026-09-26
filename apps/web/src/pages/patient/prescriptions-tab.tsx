@@ -151,6 +151,7 @@ function NewPrescriptionDialog({ patient, onClose }: { patient: PatientDto; onCl
 
   return (
     <SidePanel
+      noValidate
       open
       onClose={onClose}
       size="4xl"

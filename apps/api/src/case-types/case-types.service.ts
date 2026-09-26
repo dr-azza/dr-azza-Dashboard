@@ -3,14 +3,9 @@ import { BadRequestException, ConflictException, Injectable, NotFoundException }
 import type { AuthStaff } from '../auth/auth.types'
 import { Prisma } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
+import { DEFAULT_CASE_TYPES } from './defaults'
 
-/** The cases every clinic starts with (kept in sync with the case_types migration). */
-export const DEFAULT_CASE_TYPES: { systemKey: SystemCaseKey; nameEn: string; nameAr: string; sortOrder: number }[] = [
-  { systemKey: 'PREGNANCY', nameEn: 'Pregnancy', nameAr: 'حمل', sortOrder: 10 },
-  { systemKey: 'GYNECOLOGY', nameEn: 'Gynecology', nameAr: 'أمراض نساء', sortOrder: 20 },
-  { systemKey: 'POSTPARTUM', nameEn: 'Postpartum', nameAr: 'بعد الولادة', sortOrder: 30 },
-  { systemKey: 'FERTILITY', nameEn: 'Fertility', nameAr: 'خصوبة', sortOrder: 40 },
-]
+export { DEFAULT_CASE_TYPES }
 
 type Row = Prisma.CaseTypeGetPayload<object> & { _count?: { patients: number } }
 
@@ -33,12 +28,31 @@ const isUniqueViolation = (e: unknown) => e instanceof Prisma.PrismaClientKnownR
 export class CaseTypesService {
   constructor(private readonly prisma: PrismaService) {}
 
-  /** Creates the built-in cases for a clinic that has none yet. Safe to call repeatedly. */
+  /**
+   * Makes sure the clinic has all built-in cases. The common path is a single read (clinics are
+   * seeded by the migration); writes only happen for a clinic that is missing some. A custom case
+   * that already uses a built-in name is adopted as that built-in rather than duplicated.
+   */
   async ensureDefaults(clinicId: string) {
-    await this.prisma.caseType.createMany({
-      data: DEFAULT_CASE_TYPES.map((c) => ({ ...c, clinicId })),
-      skipDuplicates: true,
+    const present = await this.prisma.caseType.findMany({
+      where: { clinicId, systemKey: { not: null } },
+      select: { systemKey: true },
     })
+    if (present.length >= DEFAULT_CASE_TYPES.length) return
+    const have = new Set(present.map((p) => p.systemKey))
+    for (const def of DEFAULT_CASE_TYPES.filter((d) => !have.has(d.systemKey))) {
+      const sameName = await this.prisma.caseType.findFirst({
+        where: { clinicId, nameEn: def.nameEn, systemKey: null },
+      })
+      if (sameName) {
+        await this.prisma.caseType.update({
+          where: { id: sameName.id },
+          data: { systemKey: def.systemKey, archivedAt: null },
+        })
+      } else {
+        await this.prisma.caseType.createMany({ data: [{ ...def, clinicId }], skipDuplicates: true })
+      }
+    }
   }
 
   async list(staff: AuthStaff, includeArchived = false) {

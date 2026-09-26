@@ -98,8 +98,9 @@ export interface PatientFilters {
   status?: PatientStatusCode
 }
 
-export function usePatients(filters: PatientFilters) {
+export function usePatients(filters: PatientFilters, options: { enabled?: boolean } = {}) {
   return useInfiniteQuery({
+    enabled: options.enabled ?? true,
     queryKey: keys.patients(filters),
     initialPageParam: '',
     queryFn: ({ pageParam, signal }) => {
@@ -137,6 +138,7 @@ export function useUpdatePatient(id: string) {
     onSuccess: (data) => {
       qc.setQueryData(keys.patient(id), data)
       void qc.invalidateQueries({ queryKey: ['patients'] })
+      void qc.invalidateQueries({ queryKey: ['case-types'] })
     },
   })
 }
@@ -161,8 +163,16 @@ export const useAttachments = (id: string) =>
     select: (files) => files.filter((f) => f.kind !== 'PAYMENT_PROOF'),
   })
 
-/** A change to any part refreshes the header totals and the timeline too. */
-function usePatientMutation<TInput, TResult>(id: string, parts: string[], fn: (input: TInput) => Promise<TResult>) {
+/**
+ * A change to any part refreshes the header totals and the timeline too. `listsToo` also
+ * refreshes the patient list and case counts, for changes that can move a patient between cases.
+ */
+function usePatientMutation<TInput, TResult>(
+  id: string,
+  parts: string[],
+  fn: (input: TInput) => Promise<TResult>,
+  { listsToo = false } = {},
+) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: fn,
@@ -171,6 +181,9 @@ function usePatientMutation<TInput, TResult>(id: string, parts: string[], fn: (i
         qc.invalidateQueries({ queryKey: keys.patient(id), exact: true }),
         qc.invalidateQueries({ queryKey: keys.part(id, 'timeline') }),
         ...parts.map((p) => qc.invalidateQueries({ queryKey: keys.part(id, p) })),
+        ...(listsToo
+          ? [qc.invalidateQueries({ queryKey: ['patients'] }), qc.invalidateQueries({ queryKey: ['case-types'] })]
+          : []),
       ]),
   })
 }
@@ -181,8 +194,11 @@ export const useAddVisit = (id: string) =>
   )
 
 export const useStartPregnancy = (id: string) =>
-  usePatientMutation(id, ['pregnancies', 'visits'], (input: CreatePregnancyInput) =>
-    api<PregnancyDto>(`/patients/${id}/pregnancies`, { body: input }),
+  usePatientMutation(
+    id,
+    ['pregnancies', 'visits'],
+    (input: CreatePregnancyInput) => api<PregnancyDto>(`/patients/${id}/pregnancies`, { body: input }),
+    { listsToo: true },
   )
 
 export const useEndPregnancy = (id: string) =>
@@ -191,6 +207,7 @@ export const useEndPregnancy = (id: string) =>
     ['pregnancies'],
     ({ pregnancyId, status }: { pregnancyId: string; status: 'DELIVERED' | 'ENDED' }) =>
       api<PregnancyDto>(`/patients/${id}/pregnancies/${pregnancyId}/end`, { body: { status } }),
+    { listsToo: true },
   )
 
 export const useSaveMedicalHistory = (id: string) =>

@@ -4,6 +4,7 @@
  */
 import { hash } from '@node-rs/argon2'
 import { PrismaPg } from '@prisma/adapter-pg'
+import { DEFAULT_CASE_TYPES } from '../src/case-types/defaults'
 import { PrismaClient } from '../src/generated/prisma/client'
 
 const url = process.env.DATABASE_URL
@@ -99,14 +100,11 @@ async function main() {
     },
   ]
 
-  // Built-in cases (same list as the API's DEFAULT_CASE_TYPES and the case_types migration).
-  const defaults = [
-    { systemKey: 'PREGNANCY', nameEn: 'Pregnancy', nameAr: 'حمل', sortOrder: 10 },
-    { systemKey: 'GYNECOLOGY', nameEn: 'Gynecology', nameAr: 'أمراض نساء', sortOrder: 20 },
-    { systemKey: 'POSTPARTUM', nameEn: 'Postpartum', nameAr: 'بعد الولادة', sortOrder: 30 },
-    { systemKey: 'FERTILITY', nameEn: 'Fertility', nameAr: 'خصوبة', sortOrder: 40 },
-  ]
-  await prisma.caseType.createMany({ data: defaults.map((c) => ({ ...c, clinicId: clinic.id })), skipDuplicates: true })
+  // Built-in cases: the same list the API and the case_types migration use.
+  await prisma.caseType.createMany({
+    data: DEFAULT_CASE_TYPES.map((c) => ({ ...c, clinicId: clinic.id })),
+    skipDuplicates: true,
+  })
   const cases = await prisma.caseType.findMany({ where: { clinicId: clinic.id, systemKey: { not: null } } })
   const caseId = (key: string) => cases.find((c) => c.systemKey === key)!.id
 

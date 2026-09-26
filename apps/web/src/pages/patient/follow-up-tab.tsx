@@ -132,6 +132,7 @@ function StartPregnancy({ patientId }: { patientId: string }) {
   const { t } = useLang()
   const start = useStartPregnancy(patientId)
   const [open, setOpen] = useState(false)
+  const [startError, setStartError] = useState<string | null>(null)
 
   return (
     <Card>
@@ -149,12 +150,14 @@ function StartPregnancy({ patientId }: { patientId: string }) {
         onSubmit={async (event) => {
           event.preventDefault()
           const f = new FormData(event.currentTarget)
-          const input = CreatePregnancySchema.parse({
+          const parsed = CreatePregnancySchema.safeParse({
             lmp: f.get('lmp'),
             eddOverride: strOrNull(f.get('eddOverride')),
             riskNotes: strOrNull(f.get('riskNotes')),
           })
-          await start.mutateAsync(input)
+          if (!parsed.success) return setStartError(parsed.error.issues[0]?.message ?? 'Invalid')
+          setStartError(null)
+          await start.mutateAsync(parsed.data)
           setOpen(false)
         }}
         actions={
@@ -184,6 +187,7 @@ function StartPregnancy({ patientId }: { patientId: string }) {
             <Label>{t('record.followUp.riskNotes')}</Label>
             <Textarea name="riskNotes" rows={2} />
           </Field>
+          {startError && <RequestError error={new Error(startError)} />}
           <RequestError error={start.error} />
         </FieldGroup>
       </SidePanel>
@@ -259,6 +263,7 @@ function Visits({ patientId }: { patientId: string }) {
       )}
 
       <SidePanel
+        noValidate
         open={open}
         onClose={setOpen}
         size="xl"

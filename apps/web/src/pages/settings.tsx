@@ -89,6 +89,7 @@ function EditCaseTypePanel({ caseType, onClose }: { caseType: CaseTypeDto; onClo
   const { t } = useLang()
   const update = useUpdateCaseType()
   const [archived, setArchived] = useState(caseType.archived)
+  const [formError, setFormError] = useState<string | null>(null)
 
   return (
     <SidePanel
@@ -98,12 +99,15 @@ function EditCaseTypePanel({ caseType, onClose }: { caseType: CaseTypeDto; onClo
       onSubmit={async (event) => {
         event.preventDefault()
         const f = new FormData(event.currentTarget)
-        const input = UpdateCaseTypeSchema.parse({
+        const parsed = UpdateCaseTypeSchema.safeParse({
           nameEn: f.get('nameEn'),
           nameAr: f.get('nameAr'),
           ...(!caseType.systemKey && { archived }),
         })
-        await update.mutateAsync({ id: caseType.id, ...input })
+        if (!parsed.success)
+          return setFormError(parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(' · '))
+        setFormError(null)
+        await update.mutateAsync({ id: caseType.id, ...parsed.data })
         onClose()
       }}
       actions={
@@ -135,6 +139,7 @@ function EditCaseTypePanel({ caseType, onClose }: { caseType: CaseTypeDto; onClo
             <Description>{t('record.cases.archiveHint')}</Description>
           </CheckboxField>
         )}
+        {formError && <RequestError error={new Error(formError)} />}
         <RequestError error={update.error} />
       </FieldGroup>
     </SidePanel>

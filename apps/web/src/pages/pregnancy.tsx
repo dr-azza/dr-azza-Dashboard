@@ -13,8 +13,10 @@ import { addDays, MILESTONES, parseDay, weekPercent } from '@azza/shared'
 export function PregnancyPage() {
   const { t, l, formatDate } = useLang()
   const fmt = useFormat()
-  const pregnancyCase = useCaseTypes().data?.find((c) => c.systemKey === 'PREGNANCY')
-  const patients = usePatients({ caseTypeId: pregnancyCase?.id })
+  const cases = useCaseTypes()
+  const pregnancyCase = cases.data?.find((c) => c.systemKey === 'PREGNANCY')
+  // Wait for the case id, so the first request is already filtered.
+  const patients = usePatients({ caseTypeId: pregnancyCase?.id }, { enabled: !!pregnancyCase })
   const rows = (patients.data?.pages.flatMap((p) => p.items) ?? [])
     .filter((p) => p.activePregnancy)
     .sort((a, b) => a.activePregnancy!.edd.localeCompare(b.activePregnancy!.edd))
@@ -28,7 +30,7 @@ export function PregnancyPage() {
           {t('overview.statPregnancies')}: {rows.length}
         </Text>
       </div>
-      <RequestError error={patients.error} />
+      <RequestError error={cases.error ?? patients.error} />
       <Table className="[--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
         <TableHead>
           <TableRow>

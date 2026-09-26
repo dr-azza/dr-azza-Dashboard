@@ -16,6 +16,8 @@ import clsx from 'clsx'
 import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
 /** Waits until typing pauses, so search doesn't fire a request per keystroke. */
 function useDebounced<T>(value: T, ms = 300) {
   const [debounced, setDebounced] = useState(value)
@@ -33,7 +35,12 @@ export function PatientsPage() {
   const [params, setParams] = useSearchParams()
   const [newOpen, setNewOpen] = useState(false)
   const [q, setQ] = useState(params.get('q') ?? '')
-  const caseTypeId = params.get('case') ?? undefined
+  // ?case= holds a case id; older links used built-in keys (e.g. PREGNANCY), which still resolve.
+  const caseParam = params.get('case') ?? undefined
+  const caseTypeId = caseParam
+    ? (cases.data?.find((c) => c.id === caseParam || c.systemKey === caseParam)?.id ??
+      (UUID.test(caseParam) ? caseParam : undefined))
+    : undefined
   const status = (params.get('status') ?? undefined) as PatientStatusCode | undefined
   const query = useDebounced(q.trim())
 
@@ -51,7 +58,11 @@ export function PatientsPage() {
   // Keep the search in the URL so it survives reloads and can be shared.
   useEffect(() => update('q', query || undefined), [query]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const patients = usePatients({ q: query || undefined, caseTypeId, status })
+  // Legacy keys need the case list to resolve; wait for it rather than querying unfiltered.
+  const patients = usePatients(
+    { q: query || undefined, caseTypeId, status },
+    { enabled: !caseParam || !!caseTypeId || cases.isFetched },
+  )
   const rows = patients.data?.pages.flatMap((p) => p.items) ?? []
 
   return (

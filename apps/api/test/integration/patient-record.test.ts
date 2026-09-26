@@ -81,6 +81,7 @@ describe.skipIf(!url)('patient record (integration)', () => {
   let patientId = ''
   let pregnancyCaseId = ''
   let customCaseId = ''
+  let monaId = ''
 
   it('gives every clinic the built-in cases and lets staff add their own', async () => {
     const list = await call('GET', '/case-types')
@@ -130,6 +131,7 @@ describe.skipIf(!url)('patient record (integration)', () => {
       consentGiven: true,
     })
     expect(second.json().fileNumber).toBe('P-0002')
+    monaId = second.json().id
   })
 
   it('filters the patient list by any case, including custom ones', async () => {
@@ -274,6 +276,42 @@ describe.skipIf(!url)('patient record (integration)', () => {
     ]) {
       expect(names).toContain(expected)
     }
+  })
+
+  it('keeps patients editable when their case is archived, but blocks new patients in it', async () => {
+    expect((await call('PATCH', `/case-types/${customCaseId}`, { archived: true })).statusCode).toBe(200)
+    const edit = await call('PATCH', `/patients/${monaId}`, { caseTypeId: customCaseId, phone: '+201000009999' })
+    expect(edit.statusCode).toBe(200)
+    expect(edit.json().phone).toBe('+201000009999')
+    const moveIn = await call('PATCH', `/patients/${patientId}`, { caseTypeId: customCaseId })
+    expect(moveIn.statusCode).toBe(400)
+    await call('PATCH', `/case-types/${customCaseId}`, { archived: false })
+  })
+
+  it('adopts an existing custom case that uses a built-in name instead of failing', async () => {
+    const clinic = await db.clinic.create({ data: { name: `Third ${run}`, slug: `third-${run}` } })
+    const custom = await db.caseType.create({ data: { clinicId: clinic.id, nameEn: 'Pregnancy', nameAr: 'حمل' } })
+    const thirdEmail = `third-${run}@azzah.test`
+    await db.staffMember.create({
+      data: {
+        clinicId: clinic.id,
+        email: thirdEmail,
+        fullName: 'Third Doctor',
+        role: 'DOCTOR',
+        passwordHash: await hash(password),
+      },
+    })
+    const login = await app.inject({
+      method: 'POST',
+      url: '/api/v1/auth/login',
+      payload: { email: thirdEmail, password },
+    })
+    const thirdCookie = String(login.headers['set-cookie']).split(';')[0]
+    const list = await app.inject({ method: 'GET', url: '/api/v1/case-types', headers: { cookie: thirdCookie } })
+    expect(list.statusCode).toBe(200)
+    const cases = list.json() as { id: string; systemKey: string | null }[]
+    expect(cases.filter((c) => c.systemKey)).toHaveLength(4)
+    expect(cases.find((c) => c.systemKey === 'PREGNANCY')?.id).toBe(custom.id)
   })
 
   it('invalidates the session on logout', async () => {

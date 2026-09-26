@@ -160,6 +160,7 @@ function NewPaymentDialog({ patientId, onClose }: { patientId: string; onClose: 
 
   return (
     <SidePanel
+      noValidate
       open
       onClose={onClose}
       size="xl"

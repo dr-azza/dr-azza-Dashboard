@@ -94,11 +94,10 @@ export class FollowUpService {
     await this.scope.require(staff, patientId)
     const found = await this.prisma.pregnancy.findFirst({ where: { id: pregnancyId, patientId, status: 'ACTIVE' } })
     if (!found) throw new NotFoundException('Active pregnancy not found')
-    const postpartumCase = await this.caseTypes.systemCase(staff.clinicId, 'POSTPARTUM')
+    const postpartumCase = status === 'DELIVERED' ? await this.caseTypes.systemCase(staff.clinicId, 'POSTPARTUM') : null
     const row = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.pregnancy.update({ where: { id: pregnancyId }, data: { status, endedAt: new Date() } })
-      if (status === 'DELIVERED')
-        await tx.patient.update({ where: { id: patientId }, data: { caseTypeId: postpartumCase.id } })
+      if (postpartumCase) await tx.patient.update({ where: { id: patientId }, data: { caseTypeId: postpartumCase.id } })
       return updated
     })
     return toPregnancyDto(row)

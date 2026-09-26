@@ -26,6 +26,7 @@ export function SidePanel({
   description,
   size = 'lg',
   onSubmit,
+  noValidate = false,
   actions,
   children,
 }: {
@@ -36,6 +37,8 @@ export function SidePanel({
   description?: React.ReactNode
   size?: keyof typeof WIDTHS
   onSubmit?: (event: React.FormEvent<HTMLFormElement>) => void
+  /** Skip the browser's built-in checks, for forms that validate with a schema and show their own errors. */
+  noValidate?: boolean
   actions?: React.ReactNode
   children?: React.ReactNode
 }) {
@@ -87,7 +90,7 @@ export function SidePanel({
             )}
           >
             {onSubmit ? (
-              <form noValidate onSubmit={onSubmit} className="flex h-full flex-col">
+              <form noValidate={noValidate} onSubmit={onSubmit} className="flex h-full flex-col">
                 {content}
               </form>
             ) : (
