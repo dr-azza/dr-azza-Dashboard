@@ -213,7 +213,10 @@ export const en = {
   },
   errors: {
     title: 'Something went wrong on this screen',
-    body: 'Your data is safe. Reload the page, or go back and try again. If it keeps happening, tell the clinic administrator.',
+    body: 'Records that were already saved are safe; anything typed but not yet saved may need to be entered again. Reload the page or go back. If it keeps happening, tell the clinic administrator.',
+    patientTitle: 'This page could not open',
+    patientBody: 'Please try again in a moment. If it still does not work, call the clinic and they will help you.',
+    home: 'Go to overview',
     notFoundTitle: 'Page not found',
     notFoundBody: 'This link does not match any page.',
     back: 'Go back',

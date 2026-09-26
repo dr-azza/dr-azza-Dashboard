@@ -4,6 +4,7 @@ import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
 import { SidePanel } from '@/components/app/side-panel'
 import { Field, FieldGroup, Fieldset, Label, Legend } from '@/components/catalyst/fieldset'
+import { Subheading } from '@/components/catalyst/heading'
 import { Input } from '@/components/catalyst/input'
 import { Text } from '@/components/catalyst/text'
 import { Textarea } from '@/components/catalyst/textarea'
@@ -256,9 +257,7 @@ function NewPrescriptionDialog({ patient, onClose }: { patient: PatientDto; onCl
         </FieldGroup>
 
         <aside className="space-y-2">
-          <h3 className="text-base/6 font-medium text-zinc-950 sm:text-sm/6 dark:text-white">
-            {t('record.rx.quickPick')}
-          </h3>
+          <Subheading level={3}>{t('record.rx.quickPick')}</Subheading>
           <Input
             type="search"
             aria-label={t('common.search')}
