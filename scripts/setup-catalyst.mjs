@@ -25,7 +25,7 @@ const SKIP = new Set(['application-layout.tsx']) // demo-only, depends on Next.j
 if (!fs.existsSync(source)) {
   console.error(
     `Catalyst UI Kit not found at ${path.relative(root, source)}.\n` +
-      'Download it from your Tailwind Plus account and unzip it to ./catalyst-ui-kit, then run this again.'
+      'Download it from your Tailwind Plus account and unzip it to ./catalyst-ui-kit, then run this again.',
   )
   process.exit(1)
 }
@@ -67,14 +67,22 @@ function replace(src, from, to, file) {
 function addBrandColor(src, file) {
   const match = src.match(/\n(\s+)indigo:([\s\S]*?)(?=\n\s+[a-z]+:)/)
   if (!match) throw new Error(`${file}: indigo colour entry not found`)
-  const body = match[2].replace(/indigo-600/g, 'brand-700').replace(/indigo-500/g, 'brand-600').replace(/indigo/g, 'brand')
+  const body = match[2]
+    .replace(/indigo-600/g, 'brand-700')
+    .replace(/indigo-500/g, 'brand-600')
+    .replace(/indigo/g, 'brand')
   return src.replace(match[0], `\n${match[1]}brand:${body}${match[0]}`)
 }
 
 const perFile = {
   'button.tsx': (s, f) =>
     // The touch target is centred with translate-x; centring is direction-neutral, so keep it physical.
-    replace(addBrandColor(s, f), 'absolute top-1/2 start-1/2 size-[max(100%,2.75rem)]', 'absolute top-1/2 left-1/2 size-[max(100%,2.75rem)]', f),
+    replace(
+      addBrandColor(s, f),
+      'absolute top-1/2 start-1/2 size-[max(100%,2.75rem)]',
+      'absolute top-1/2 left-1/2 size-[max(100%,2.75rem)]',
+      f,
+    ),
   'badge.tsx': addBrandColor,
   'checkbox.tsx': addBrandColor,
   'radio.tsx': addBrandColor,
@@ -83,16 +91,26 @@ const perFile = {
       addBrandColor(s, f),
       "'group-data-checked:translate-x-4 sm:group-data-checked:translate-x-3',",
       "'group-data-checked:translate-x-4 sm:group-data-checked:translate-x-3 rtl:group-data-checked:-translate-x-4 sm:rtl:group-data-checked:-translate-x-3',",
-      f
+      f,
     ),
   'pagination.tsx': (s, f) =>
-    replace(s, '<svg className="stroke-current" data-slot="icon"', '<svg className="stroke-current rtl:rotate-180" data-slot="icon"', f),
+    replace(
+      s,
+      '<svg className="stroke-current" data-slot="icon"',
+      '<svg className="stroke-current rtl:rotate-180" data-slot="icon"',
+      f,
+    ),
   'sidebar.tsx': (s, f) =>
     replace(
-      replace(s, "'data-current:*:data-[slot=icon]:fill-zinc-950',", "'data-current:*:data-[slot=icon]:fill-brand-600',", f),
+      replace(
+        s,
+        "'data-current:*:data-[slot=icon]:fill-zinc-950',",
+        "'data-current:*:data-[slot=icon]:fill-brand-600',",
+        f,
+      ),
       'absolute inset-y-2 -start-4 w-0.5 rounded-full bg-zinc-950 dark:bg-white',
       'absolute inset-y-2 -start-4 w-0.5 rounded-full bg-brand-600 dark:bg-brand-400',
-      f
+      f,
     ),
   'sidebar-layout.tsx': (s, f) =>
     replace(mobilePanel(s, f), 'lg:bg-zinc-100 dark:bg-zinc-900', 'lg:bg-seashell dark:bg-zinc-900', f),
@@ -104,7 +122,7 @@ function mobilePanel(s, f) {
     s,
     'className="fixed inset-y-0 w-full max-w-80 p-2 transition duration-300 ease-in-out data-closed:-translate-x-full"',
     'className="fixed inset-y-0 start-0 w-full max-w-80 p-2 transition duration-300 ease-in-out data-closed:-translate-x-full rtl:data-closed:translate-x-full"',
-    f
+    f,
   )
 }
 
@@ -114,7 +132,9 @@ for (const file of fs.readdirSync(source)) {
   if (!file.endsWith('.tsx') || SKIP.has(file)) continue
   let src = fs.readFileSync(path.join(source, file), 'utf8')
   src = src.replace(CLASS_RE, (_m, pre, neg, util) => pre + neg + PHYSICAL_TO_LOGICAL[util])
-  src = src.replace(/(outline|ring)-blue-500/g, '$1-brand-600').replace(/data-focus:bg-blue-500/g, 'data-focus:bg-brand-600')
+  src = src
+    .replace(/(outline|ring)-blue-500/g, '$1-brand-600')
+    .replace(/data-focus:bg-blue-500/g, 'data-focus:bg-brand-600')
   if (perFile[file]) src = perFile[file](src, file)
   fs.writeFileSync(path.join(target, file), src)
   count++

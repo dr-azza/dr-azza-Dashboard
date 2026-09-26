@@ -3,15 +3,7 @@
  * Node + Postgres backend exists. Pregnancy ages are stored as "days pregnant today",
  * so gestational ages and due dates stay consistent whatever day the app is opened.
  */
-import type {
-  Appointment,
-  AttentionItem,
-  FormResponse,
-  FormTemplate,
-  L,
-  Patient,
-  Reminder,
-} from '@azza/shared'
+import type { Appointment, AttentionItem, FormResponse, FormTemplate, L, Patient, Reminder } from '@azza/shared'
 
 const n = (en: string, ar: string): L => ({ en, ar })
 
@@ -37,36 +29,109 @@ export const patients: Patient[] = [
       title: n('Home BP 145/95 with a severe headache', 'ضغط منزلي 145/95 مع صداع شديد'),
       body: n(
         'Reported in the weekly check-in today at 08:40. The doctor needs to review this today.',
-        'تم الإبلاغ في المتابعة الأسبوعية اليوم الساعة 08:40. تحتاج مراجعة الطبيبة اليوم.'
+        'تم الإبلاغ في المتابعة الأسبوعية اليوم الساعة 08:40. تحتاج مراجعة الطبيبة اليوم.',
       ),
     },
     visits: [
-      { daysAgo: 0, bp: '145/95', bpHigh: true, note: n('Home reading from weekly form, with headache', 'قياس منزلي من النموذج الأسبوعي مع صداع') },
-      { daysAgo: 14, weightKg: 74.2, bp: '128/82', fundalCm: 28, fhr: 142, note: n('Glucose test normal, Hb low, iron started', 'تحليل السكر طبيعي، الهيموجلوبين منخفض، بدء الحديد') },
-      { daysAgo: 42, weightKg: 72.0, bp: '122/78', fundalCm: 24, fhr: 148, note: n('Routine visit, no concerns', 'زيارة روتينية بلا ملاحظات') },
-      { daysAgo: 70, weightKg: 70.1, bp: '118/76', fundalCm: 20, fhr: 150, note: n('Anomaly scan normal', 'السونار التفصيلي طبيعي') },
+      {
+        daysAgo: 0,
+        bp: '145/95',
+        bpHigh: true,
+        note: n('Home reading from weekly form, with headache', 'قياس منزلي من النموذج الأسبوعي مع صداع'),
+      },
+      {
+        daysAgo: 14,
+        weightKg: 74.2,
+        bp: '128/82',
+        fundalCm: 28,
+        fhr: 142,
+        note: n('Glucose test normal, Hb low, iron started', 'تحليل السكر طبيعي، الهيموجلوبين منخفض، بدء الحديد'),
+      },
+      {
+        daysAgo: 42,
+        weightKg: 72.0,
+        bp: '122/78',
+        fundalCm: 24,
+        fhr: 148,
+        note: n('Routine visit, no concerns', 'زيارة روتينية بلا ملاحظات'),
+      },
+      {
+        daysAgo: 70,
+        weightKg: 70.1,
+        bp: '118/76',
+        fundalCm: 20,
+        fhr: 150,
+        note: n('Anomaly scan normal', 'السونار التفصيلي طبيعي'),
+      },
       { daysAgo: 98, weightKg: 68.4, bp: '116/74', fhr: 152, note: n('Routine visit', 'زيارة روتينية') },
     ],
     labs: [
-      { name: n('Hemoglobin (CBC)', 'الهيموجلوبين (صورة دم)'), date: n('2 weeks ago', 'منذ أسبوعين'), result: n('10.9 g/dL · low', '10.9 جم/دل · منخفض'), tone: 'warn' },
-      { name: n('Glucose tolerance test (OGTT)', 'منحنى السكر (OGTT)'), date: n('2 weeks ago', 'منذ أسبوعين'), result: n('Normal', 'طبيعي'), tone: 'ok' },
-      { name: n('Anomaly scan', 'السونار التفصيلي'), date: n('10 weeks ago', 'منذ 10 أسابيع'), result: n('Normal', 'طبيعي'), tone: 'ok' },
-      { name: n('Urine protein', 'بروتين في البول'), date: n('At next visit', 'في الزيارة القادمة'), result: n('Requested', 'مطلوب'), tone: 'neutral' },
+      {
+        name: n('Hemoglobin (CBC)', 'الهيموجلوبين (صورة دم)'),
+        date: n('2 weeks ago', 'منذ أسبوعين'),
+        result: n('10.9 g/dL · low', '10.9 جم/دل · منخفض'),
+        tone: 'warn',
+      },
+      {
+        name: n('Glucose tolerance test (OGTT)', 'منحنى السكر (OGTT)'),
+        date: n('2 weeks ago', 'منذ أسبوعين'),
+        result: n('Normal', 'طبيعي'),
+        tone: 'ok',
+      },
+      {
+        name: n('Anomaly scan', 'السونار التفصيلي'),
+        date: n('10 weeks ago', 'منذ 10 أسابيع'),
+        result: n('Normal', 'طبيعي'),
+        tone: 'ok',
+      },
+      {
+        name: n('Urine protein', 'بروتين في البول'),
+        date: n('At next visit', 'في الزيارة القادمة'),
+        result: n('Requested', 'مطلوب'),
+        tone: 'neutral',
+      },
     ],
     tasks: [
-      { when: n('Today', 'اليوم'), urgent: true, title: n('Call about BP and headache', 'اتصال بخصوص الضغط والصداع'), meta: n('Assigned to the nurse · from flagged form', 'مُسندة للممرضة · من نموذج يحتاج مراجعة') },
-      { when: n('30 Sep', '30 سبتمبر'), title: n('Visit: BP and urine protein', 'زيارة: الضغط وبروتين البول'), meta: n('WhatsApp reminder the day before, 18:00', 'تذكير واتساب قبلها بيوم، 18:00') },
-      { when: n('3 Oct', '3 أكتوبر'), title: n('Weekly check-in form', 'نموذج المتابعة الأسبوعية'), meta: n('Sent every Saturday until 40 weeks', 'يُرسل كل سبت حتى الأسبوع 40') },
-      { when: n('10 Oct', '10 أكتوبر'), title: n('Growth scan', 'سونار النمو'), meta: n('WhatsApp reminder 2 days before', 'تذكير واتساب قبلها بيومين') },
+      {
+        when: n('Today', 'اليوم'),
+        urgent: true,
+        title: n('Call about BP and headache', 'اتصال بخصوص الضغط والصداع'),
+        meta: n('Assigned to the nurse · from flagged form', 'مُسندة للممرضة · من نموذج يحتاج مراجعة'),
+      },
+      {
+        when: n('30 Sep', '30 سبتمبر'),
+        title: n('Visit: BP and urine protein', 'زيارة: الضغط وبروتين البول'),
+        meta: n('WhatsApp reminder the day before, 18:00', 'تذكير واتساب قبلها بيوم، 18:00'),
+      },
+      {
+        when: n('3 Oct', '3 أكتوبر'),
+        title: n('Weekly check-in form', 'نموذج المتابعة الأسبوعية'),
+        meta: n('Sent every Saturday until 40 weeks', 'يُرسل كل سبت حتى الأسبوع 40'),
+      },
+      {
+        when: n('10 Oct', '10 أكتوبر'),
+        title: n('Growth scan', 'سونار النمو'),
+        meta: n('WhatsApp reminder 2 days before', 'تذكير واتساب قبلها بيومين'),
+      },
     ],
     responses: [
-      { form: n('Weekly check-in', 'المتابعة الأسبوعية'), when: n('Today 08:40', 'اليوم 08:40'), summary: n('BP 145/95 · severe headache · question for the doctor', 'ضغط 145/95 · صداع شديد · سؤال للطبيبة'), status: 'flagged' },
-      { form: n('Weekly check-in', 'المتابعة الأسبوعية'), when: n('Last Saturday', 'السبت الماضي'), summary: n('No symptoms reported', 'لا توجد أعراض'), status: 'reviewed' },
+      {
+        form: n('Weekly check-in', 'المتابعة الأسبوعية'),
+        when: n('Today 08:40', 'اليوم 08:40'),
+        summary: n('BP 145/95 · severe headache · question for the doctor', 'ضغط 145/95 · صداع شديد · سؤال للطبيبة'),
+        status: 'flagged',
+      },
+      {
+        form: n('Weekly check-in', 'المتابعة الأسبوعية'),
+        when: n('Last Saturday', 'السبت الماضي'),
+        summary: n('No symptoms reported', 'لا توجد أعراض'),
+        status: 'reviewed',
+      },
     ],
     note: {
       text: n(
         'Previous C-section in 2023. Discuss VBAC vs repeat C-section at the 34-week visit. Hb 10.9 two weeks ago, iron started, recheck at 34 weeks.',
-        'قيصرية سابقة في 2023. مناقشة الولادة الطبيعية بعد القيصرية أو قيصرية متكررة في زيارة الأسبوع 34. الهيموجلوبين 10.9 منذ أسبوعين، بدأ الحديد، إعادة التحليل في الأسبوع 34.'
+        'قيصرية سابقة في 2023. مناقشة الولادة الطبيعية بعد القيصرية أو قيصرية متكررة في زيارة الأسبوع 34. الهيموجلوبين 10.9 منذ أسبوعين، بدأ الحديد، إعادة التحليل في الأسبوع 34.',
       ),
       by: n('Doctor', 'الطبيبة'),
       date: n('2 weeks ago', 'منذ أسبوعين'),
@@ -85,10 +150,18 @@ export const patients: Patient[] = [
     status: 'flagged',
     alert: {
       title: n('Reduced fetal movement reported', 'إبلاغ عن قلة حركة الجنين'),
-      body: n('Reported in the weekly check-in 40 minutes ago. Consider a same-day CTG.', 'تم الإبلاغ في المتابعة الأسبوعية منذ 40 دقيقة. يُنصح برسم قلب جنين اليوم.'),
+      body: n(
+        'Reported in the weekly check-in 40 minutes ago. Consider a same-day CTG.',
+        'تم الإبلاغ في المتابعة الأسبوعية منذ 40 دقيقة. يُنصح برسم قلب جنين اليوم.',
+      ),
     },
     responses: [
-      { form: n('Weekly check-in', 'المتابعة الأسبوعية'), when: n('Today 10:12', 'اليوم 10:12'), summary: n('Reduced fetal movement since last night', 'قلة حركة الجنين منذ الليلة الماضية'), status: 'flagged' },
+      {
+        form: n('Weekly check-in', 'المتابعة الأسبوعية'),
+        when: n('Today 10:12', 'اليوم 10:12'),
+        summary: n('Reduced fetal movement since last night', 'قلة حركة الجنين منذ الليلة الماضية'),
+        status: 'flagged',
+      },
     ],
   },
   {
@@ -127,7 +200,12 @@ export const patients: Patient[] = [
     lastContact: n('Today', 'اليوم'),
     status: 'ok',
     responses: [
-      { form: n('Weekly check-in', 'المتابعة الأسبوعية'), when: n('Yesterday 19:30', 'أمس 19:30'), summary: n('Question: can I travel by car for 4 hours?', 'سؤال: هل يمكنني السفر بالسيارة 4 ساعات؟'), status: 'new' },
+      {
+        form: n('Weekly check-in', 'المتابعة الأسبوعية'),
+        when: n('Yesterday 19:30', 'أمس 19:30'),
+        summary: n('Question: can I travel by car for 4 hours?', 'سؤال: هل يمكنني السفر بالسيارة 4 ساعات؟'),
+        status: 'new',
+      },
     ],
   },
   {
@@ -261,46 +339,208 @@ export function findPatient(id: string) {
 }
 
 export const schedule: Appointment[] = [
-  { time: '09:00', patientId: 'p-1042', reason: n('Antenatal visit', 'زيارة متابعة حمل'), type: 'pregnancy', status: 'done' },
-  { time: '09:30', patientId: 'p-0411', reason: n('Pap smear follow-up', 'متابعة مسحة عنق الرحم'), type: 'gynecology', status: 'done' },
+  {
+    time: '09:00',
+    patientId: 'p-1042',
+    reason: n('Antenatal visit', 'زيارة متابعة حمل'),
+    type: 'pregnancy',
+    status: 'done',
+  },
+  {
+    time: '09:30',
+    patientId: 'p-0411',
+    reason: n('Pap smear follow-up', 'متابعة مسحة عنق الرحم'),
+    type: 'gynecology',
+    status: 'done',
+  },
   { time: '10:00', patientId: 'p-1301', reason: n('Anomaly scan', 'سونار تفصيلي'), type: 'scan', status: 'done' },
-  { time: '10:30', patientId: 'p-1333', reason: n('First pregnancy visit', 'أول زيارة حمل'), type: 'pregnancy', status: 'checkedIn' },
-  { time: '11:00', patientId: 'p-1310', reason: n('PCOS review', 'متابعة تكيّس المبايض'), type: 'gynecology', status: 'upcoming' },
-  { time: '11:30', patientId: 'p-1015', reason: n('Postpartum check', 'فحص بعد الولادة'), type: 'postpartum', status: 'upcoming' },
-  { time: '12:00', patientId: 'p-1276', reason: n('Follicle scan', 'سونار متابعة التبويض'), type: 'fertility', status: 'upcoming' },
+  {
+    time: '10:30',
+    patientId: 'p-1333',
+    reason: n('First pregnancy visit', 'أول زيارة حمل'),
+    type: 'pregnancy',
+    status: 'checkedIn',
+  },
+  {
+    time: '11:00',
+    patientId: 'p-1310',
+    reason: n('PCOS review', 'متابعة تكيّس المبايض'),
+    type: 'gynecology',
+    status: 'upcoming',
+  },
+  {
+    time: '11:30',
+    patientId: 'p-1015',
+    reason: n('Postpartum check', 'فحص بعد الولادة'),
+    type: 'postpartum',
+    status: 'upcoming',
+  },
+  {
+    time: '12:00',
+    patientId: 'p-1276',
+    reason: n('Follicle scan', 'سونار متابعة التبويض'),
+    type: 'fertility',
+    status: 'upcoming',
+  },
 ]
 
 export const attention: AttentionItem[] = [
-  { patientId: 'p-1203', severity: 'high', title: n('Reduced fetal movement reported', 'إبلاغ عن قلة حركة الجنين'), detail: n('Weekly check-in, 40 min ago', 'المتابعة الأسبوعية، منذ 40 دقيقة'), action: 'review' },
-  { patientId: 'p-1187', severity: 'high', title: n('BP 145/95 with headache (home reading)', 'ضغط 145/95 مع صداع (قياس منزلي)'), detail: n('Weekly check-in, today 08:40', 'المتابعة الأسبوعية، اليوم 08:40'), action: 'review' },
-  { patientId: 'p-1251', severity: 'medium', title: n('Missed glucose test (24–28 w window)', 'فات موعد تحليل السكر (الأسبوع 24–28)'), detail: n('No visit in 6 days', 'لا زيارة منذ 6 أيام'), action: 'call' },
-  { patientId: 'p-0988', severity: 'low', title: n('No reply to postpartum form (3 days)', 'لا رد على نموذج ما بعد الولادة (3 أيام)'), detail: n('5 weeks postpartum', '5 أسابيع بعد الولادة'), action: 'resend' },
-  { patientId: 'p-1042', severity: 'low', title: n('Lab results uploaded, not reviewed', 'نتائج تحاليل مرفوعة لم تُراجع'), detail: n('CBC, urine analysis', 'صورة دم، تحليل بول'), action: 'open' },
+  {
+    patientId: 'p-1203',
+    severity: 'high',
+    title: n('Reduced fetal movement reported', 'إبلاغ عن قلة حركة الجنين'),
+    detail: n('Weekly check-in, 40 min ago', 'المتابعة الأسبوعية، منذ 40 دقيقة'),
+    action: 'review',
+  },
+  {
+    patientId: 'p-1187',
+    severity: 'high',
+    title: n('BP 145/95 with headache (home reading)', 'ضغط 145/95 مع صداع (قياس منزلي)'),
+    detail: n('Weekly check-in, today 08:40', 'المتابعة الأسبوعية، اليوم 08:40'),
+    action: 'review',
+  },
+  {
+    patientId: 'p-1251',
+    severity: 'medium',
+    title: n('Missed glucose test (24–28 w window)', 'فات موعد تحليل السكر (الأسبوع 24–28)'),
+    detail: n('No visit in 6 days', 'لا زيارة منذ 6 أيام'),
+    action: 'call',
+  },
+  {
+    patientId: 'p-0988',
+    severity: 'low',
+    title: n('No reply to postpartum form (3 days)', 'لا رد على نموذج ما بعد الولادة (3 أيام)'),
+    detail: n('5 weeks postpartum', '5 أسابيع بعد الولادة'),
+    action: 'resend',
+  },
+  {
+    patientId: 'p-1042',
+    severity: 'low',
+    title: n('Lab results uploaded, not reviewed', 'نتائج تحاليل مرفوعة لم تُراجع'),
+    detail: n('CBC, urine analysis', 'صورة دم، تحليل بول'),
+    action: 'open',
+  },
 ]
 
 export const reminders: Reminder[] = [
-  { when: n('Today 14:00', 'اليوم 14:00'), message: n('Appointment reminder', 'تذكير بموعد'), to: n('Yasmin Farouk', 'ياسمين فاروق'), channel: 'whatsapp', status: 'queued' },
-  { when: n('Today 16:00', 'اليوم 16:00'), message: n('Weekly check-in form', 'نموذج المتابعة الأسبوعية'), to: n('11 pregnancies', '11 حالة حمل'), channel: 'whatsapp', status: 'queued' },
-  { when: n('Today 08:00', 'اليوم 08:00'), message: n('Iron supplement reminder', 'تذكير بمكمل الحديد'), to: n('4 patients', '4 مريضات'), channel: 'sms', status: 'sent' },
-  { when: n('Yesterday 18:00', 'أمس 18:00'), message: n('Glucose test due', 'موعد تحليل السكر'), to: n('Aya Ibrahim', 'آية إبراهيم'), channel: 'whatsapp', status: 'failed', detail: n('Number unreachable', 'الرقم غير متاح') },
-  { when: n('Yesterday 18:00', 'أمس 18:00'), message: n('Visit tomorrow', 'زيارة غدًا'), to: n('Mariam Adel', 'مريم عادل'), channel: 'whatsapp', status: 'sent' },
+  {
+    when: n('Today 14:00', 'اليوم 14:00'),
+    message: n('Appointment reminder', 'تذكير بموعد'),
+    to: n('Yasmin Farouk', 'ياسمين فاروق'),
+    channel: 'whatsapp',
+    status: 'queued',
+  },
+  {
+    when: n('Today 16:00', 'اليوم 16:00'),
+    message: n('Weekly check-in form', 'نموذج المتابعة الأسبوعية'),
+    to: n('11 pregnancies', '11 حالة حمل'),
+    channel: 'whatsapp',
+    status: 'queued',
+  },
+  {
+    when: n('Today 08:00', 'اليوم 08:00'),
+    message: n('Iron supplement reminder', 'تذكير بمكمل الحديد'),
+    to: n('4 patients', '4 مريضات'),
+    channel: 'sms',
+    status: 'sent',
+  },
+  {
+    when: n('Yesterday 18:00', 'أمس 18:00'),
+    message: n('Glucose test due', 'موعد تحليل السكر'),
+    to: n('Aya Ibrahim', 'آية إبراهيم'),
+    channel: 'whatsapp',
+    status: 'failed',
+    detail: n('Number unreachable', 'الرقم غير متاح'),
+  },
+  {
+    when: n('Yesterday 18:00', 'أمس 18:00'),
+    message: n('Visit tomorrow', 'زيارة غدًا'),
+    to: n('Mariam Adel', 'مريم عادل'),
+    channel: 'whatsapp',
+    status: 'sent',
+  },
 ]
 
 export const formTemplates: FormTemplate[] = [
-  { id: 'weekly', name: n('Weekly pregnancy check-in', 'المتابعة الأسبوعية للحمل'), questions: 12, meta: n('Auto-sent weekly', 'يُرسل تلقائيًا كل أسبوع') },
-  { id: 'intake', name: n('First visit intake', 'استمارة الزيارة الأولى'), questions: 28, meta: n('History and consent', 'التاريخ المرضي والموافقة') },
-  { id: 'previsit', name: n('Pre-visit symptoms', 'الأعراض قبل الزيارة'), questions: 9, meta: n('Sent the day before', 'يُرسل قبل الزيارة بيوم') },
-  { id: 'postpartum', name: n('Postpartum check (6 weeks)', 'فحص ما بعد الولادة (6 أسابيع)'), questions: 15, meta: n('Includes mood screen', 'يشمل تقييم الحالة المزاجية') },
-  { id: 'ask', name: n('Ask the doctor', 'اسألي الطبيبة'), questions: 3, meta: n('Free text and photo', 'نص حر وصورة') },
-  { id: 'consent', name: n('Consent to data use', 'الموافقة على استخدام البيانات'), questions: 4, meta: n('Required once', 'مطلوب مرة واحدة') },
+  {
+    id: 'weekly',
+    name: n('Weekly pregnancy check-in', 'المتابعة الأسبوعية للحمل'),
+    questions: 12,
+    meta: n('Auto-sent weekly', 'يُرسل تلقائيًا كل أسبوع'),
+  },
+  {
+    id: 'intake',
+    name: n('First visit intake', 'استمارة الزيارة الأولى'),
+    questions: 28,
+    meta: n('History and consent', 'التاريخ المرضي والموافقة'),
+  },
+  {
+    id: 'previsit',
+    name: n('Pre-visit symptoms', 'الأعراض قبل الزيارة'),
+    questions: 9,
+    meta: n('Sent the day before', 'يُرسل قبل الزيارة بيوم'),
+  },
+  {
+    id: 'postpartum',
+    name: n('Postpartum check (6 weeks)', 'فحص ما بعد الولادة (6 أسابيع)'),
+    questions: 15,
+    meta: n('Includes mood screen', 'يشمل تقييم الحالة المزاجية'),
+  },
+  {
+    id: 'ask',
+    name: n('Ask the doctor', 'اسألي الطبيبة'),
+    questions: 3,
+    meta: n('Free text and photo', 'نص حر وصورة'),
+  },
+  {
+    id: 'consent',
+    name: n('Consent to data use', 'الموافقة على استخدام البيانات'),
+    questions: 4,
+    meta: n('Required once', 'مطلوب مرة واحدة'),
+  },
 ]
 
 export const formResponses: FormResponse[] = [
-  { patientId: 'p-1203', when: n('Today 10:12', 'اليوم 10:12'), summary: n('Reduced fetal movement since last night', 'قلة حركة الجنين منذ الليلة الماضية'), status: 'flagged' },
-  { patientId: 'p-1187', when: n('Today 08:40', 'اليوم 08:40'), summary: n('BP 145/95 · severe headache', 'ضغط 145/95 · صداع شديد'), status: 'flagged' },
-  { patientId: 'p-1042', when: n('Yesterday 19:30', 'أمس 19:30'), summary: n('Question: can I travel by car for 4 hours?', 'سؤال: هل يمكنني السفر بالسيارة 4 ساعات؟'), status: 'new' },
-  { patientId: 'p-1098', when: n('Yesterday 18:02', 'أمس 18:02'), summary: n('No symptoms · wants to confirm C-section time', 'لا أعراض · تريد تأكيد موعد القيصرية'), status: 'new' },
-  { patientId: 'p-1120', when: n('Yesterday 21:05', 'أمس 21:05'), summary: n('No symptoms', 'لا أعراض'), status: 'reviewed' },
-  { patientId: 'p-1162', when: n('Thu 24 Sep', 'الخميس 24 سبتمبر'), summary: n('Mild swelling in feet only', 'تورم خفيف في القدمين فقط'), status: 'reviewed' },
-  { patientId: 'p-1144', when: n('Sent Thu 24 Sep', 'أُرسل الخميس 24 سبتمبر'), summary: n('Not opened yet, reminder goes out tonight', 'لم يُفتح بعد، التذكير يُرسل الليلة'), status: 'noAnswer' },
+  {
+    patientId: 'p-1203',
+    when: n('Today 10:12', 'اليوم 10:12'),
+    summary: n('Reduced fetal movement since last night', 'قلة حركة الجنين منذ الليلة الماضية'),
+    status: 'flagged',
+  },
+  {
+    patientId: 'p-1187',
+    when: n('Today 08:40', 'اليوم 08:40'),
+    summary: n('BP 145/95 · severe headache', 'ضغط 145/95 · صداع شديد'),
+    status: 'flagged',
+  },
+  {
+    patientId: 'p-1042',
+    when: n('Yesterday 19:30', 'أمس 19:30'),
+    summary: n('Question: can I travel by car for 4 hours?', 'سؤال: هل يمكنني السفر بالسيارة 4 ساعات؟'),
+    status: 'new',
+  },
+  {
+    patientId: 'p-1098',
+    when: n('Yesterday 18:02', 'أمس 18:02'),
+    summary: n('No symptoms · wants to confirm C-section time', 'لا أعراض · تريد تأكيد موعد القيصرية'),
+    status: 'new',
+  },
+  {
+    patientId: 'p-1120',
+    when: n('Yesterday 21:05', 'أمس 21:05'),
+    summary: n('No symptoms', 'لا أعراض'),
+    status: 'reviewed',
+  },
+  {
+    patientId: 'p-1162',
+    when: n('Thu 24 Sep', 'الخميس 24 سبتمبر'),
+    summary: n('Mild swelling in feet only', 'تورم خفيف في القدمين فقط'),
+    status: 'reviewed',
+  },
+  {
+    patientId: 'p-1144',
+    when: n('Sent Thu 24 Sep', 'أُرسل الخميس 24 سبتمبر'),
+    summary: n('Not opened yet, reminder goes out tonight', 'لم يُفتح بعد، التذكير يُرسل الليلة'),
+    status: 'noAnswer',
+  },
 ]

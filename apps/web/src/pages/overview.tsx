@@ -76,7 +76,12 @@ export function OverviewPage() {
           value={pregnancies.length}
           note={t('overview.statPregnanciesNote', { t1: byTrimester[0], t2: byTrimester[1], t3: byTrimester[2] })}
         />
-        <StatCard label={t('overview.statOverdue')} value={overdue} note={t('overview.statOverdueNote')} tone="danger" />
+        <StatCard
+          label={t('overview.statOverdue')}
+          value={overdue}
+          note={t('overview.statOverdueNote')}
+          tone="danger"
+        />
         <StatCard
           label={t('overview.statResponses')}
           value={fresh}
@@ -89,7 +94,10 @@ export function OverviewPage() {
         <Card
           title={t('overview.schedule')}
           action={
-            <Link href="/appointments" className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300">
+            <Link
+              href="/appointments"
+              className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300"
+            >
               {t('overview.openCalendar')}
             </Link>
           }
@@ -118,7 +126,9 @@ export function OverviewPage() {
                         {info && ` · ${t('common.ga', { w: info.weeks, d: info.days })}`}
                       </div>
                     </TableCell>
-                    <TableCell className="text-zinc-500 max-sm:hidden dark:text-zinc-400">{t(`case.${s.type}`)}</TableCell>
+                    <TableCell className="text-zinc-500 max-sm:hidden dark:text-zinc-400">
+                      {t(`case.${s.type}`)}
+                    </TableCell>
                     <TableCell>
                       <StatusBadge kind="appointment" status={s.status} />
                     </TableCell>
@@ -179,7 +189,10 @@ export function OverviewPage() {
         <Card
           title={t('overview.dueSoon')}
           action={
-            <Link href="/pregnancy" className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300">
+            <Link
+              href="/pregnancy"
+              className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300"
+            >
               {t('common.viewAll')}
             </Link>
           }
@@ -192,7 +205,10 @@ export function OverviewPage() {
                 <div className="text-xs/4 text-zinc-500">{formatDate(info.edd, { month: 'short' })}</div>
               </div>
               <div className="min-w-0 flex-1">
-                <Link href={`/patients/${patient.id}`} className="text-sm/6 font-medium text-zinc-950 hover:underline dark:text-white">
+                <Link
+                  href={`/patients/${patient.id}`}
+                  className="text-sm/6 font-medium text-zinc-950 hover:underline dark:text-white"
+                >
                   {l(patient.name)}
                 </Link>
                 <div className="truncate text-sm/5 text-zinc-500 dark:text-zinc-400">
@@ -207,7 +223,10 @@ export function OverviewPage() {
         <Card
           title={t('overview.reminders')}
           action={
-            <Link href="/reminders" className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300">
+            <Link
+              href="/reminders"
+              className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300"
+            >
               {t('common.manage')}
             </Link>
           }

@@ -26,7 +26,11 @@ export function isHighBloodPressure(systolic?: number | null, diastolic?: number
   return (systolic ?? 0) >= BP_SYSTOLIC_LIMIT || (diastolic ?? 0) >= BP_DIASTOLIC_LIMIT
 }
 
-export function isUrgentCheckin(answer: { symptoms: readonly CheckinSymptom[]; systolic?: number | null; diastolic?: number | null }) {
+export function isUrgentCheckin(answer: {
+  symptoms: readonly CheckinSymptom[]
+  systolic?: number | null
+  diastolic?: number | null
+}) {
   return (
     isHighBloodPressure(answer.systolic, answer.diastolic) || answer.symptoms.some((s) => RED_FLAG_SYMPTOMS.includes(s))
   )

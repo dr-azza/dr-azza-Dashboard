@@ -42,11 +42,12 @@ export function PatientsPage() {
         p.name.en.toLowerCase().includes(query) ||
         p.name.ar.includes(q.trim()) ||
         p.file.toLowerCase().includes(query) ||
-        p.phone.replace(/\s/g, '').includes(query.replace(/\s/g, ''))
+        p.phone.replace(/\s/g, '').includes(query.replace(/\s/g, '')),
     )
     .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
 
-  const count = (c: CaseType | 'all') => (c === 'all' ? patients.length : patients.filter((p) => p.caseType === c).length)
+  const count = (c: CaseType | 'all') =>
+    c === 'all' ? patients.length : patients.filter((p) => p.caseType === c).length
 
   return (
     <div className="space-y-6">
@@ -94,14 +95,19 @@ export function PatientsPage() {
               'rounded-full px-3.5 py-1.5 text-sm/6 font-medium ring-1 transition-colors',
               caseFilter === c
                 ? 'bg-brand-600 text-white ring-brand-600'
-                : 'bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-white/10'
+                : 'bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-white/10',
             )}
           >
-            {c === 'all' ? t('patients.all') : t(`case.${c}`)} <span className="tabular-nums opacity-70">· {count(c)}</span>
+            {c === 'all' ? t('patients.all') : t(`case.${c}`)}{' '}
+            <span className="tabular-nums opacity-70">· {count(c)}</span>
           </button>
         ))}
         <div className="ms-auto w-48">
-          <Select aria-label={t('patients.statusFilter')} value={statusFilter} onChange={(e) => update('status', e.target.value)}>
+          <Select
+            aria-label={t('patients.statusFilter')}
+            value={statusFilter}
+            onChange={(e) => update('status', e.target.value)}
+          >
             {STATUSES.map((s) => (
               <option key={s} value={s}>
                 {s === 'all' ? t('patients.allStatuses') : t(`status.${s}`)}
@@ -146,7 +152,9 @@ export function PatientsPage() {
                 <TableCell className="font-medium">
                   {info ? t('common.ga', { w: info.weeks, d: info.days }) : p.stage && l(p.stage)}
                 </TableCell>
-                <TableCell className="max-md:hidden">{p.nextVisit ? l(p.nextVisit) : <span className="text-amber-700">{t('patients.notBooked')}</span>}</TableCell>
+                <TableCell className="max-md:hidden">
+                  {p.nextVisit ? l(p.nextVisit) : <span className="text-amber-700">{t('patients.notBooked')}</span>}
+                </TableCell>
                 <TableCell className="text-zinc-500 max-xl:hidden">{l(p.lastContact)}</TableCell>
                 <TableCell>
                   <StatusBadge kind="patient" status={p.status} />

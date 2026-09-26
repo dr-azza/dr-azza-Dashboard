@@ -13,7 +13,11 @@ export function PregnancyTimeline({ lmp, today }: { lmp: Date; today: Date }) {
   const short = (d: Date) => formatDate(d, { day: 'numeric', month: 'short' })
 
   return (
-    <div className="relative h-36 select-none" role="img" aria-label={t('file.today', { ga: t('common.ga', { w: ga.weeks, d: ga.days }) })}>
+    <div
+      className="relative h-36 select-none"
+      role="img"
+      aria-label={t('file.today', { ga: t('common.ga', { w: ga.weeks, d: ga.days }) })}
+    >
       {/* Today marker */}
       <div
         className="absolute top-0 -translate-x-1/2 rounded-full bg-brand-600 px-2.5 py-0.5 text-xs/5 font-semibold whitespace-nowrap text-white rtl:translate-x-1/2"
@@ -58,13 +62,18 @@ export function PregnancyTimeline({ lmp, today }: { lmp: Date; today: Date }) {
             <span
               className={clsx(
                 'flex size-4.5 items-center justify-center rounded-full ring-3 ring-white dark:ring-zinc-900',
-                done ? 'bg-teal-600 text-white' : 'bg-white outline-1 outline-zinc-400 dark:bg-zinc-800'
+                done ? 'bg-teal-600 text-white' : 'bg-white outline-1 outline-zinc-400 dark:bg-zinc-800',
               )}
             >
               {done && <CheckIcon className="size-3" />}
             </span>
             <span className="text-xs/4 font-semibold text-zinc-950 dark:text-white">{l(m.name)}</span>
-            <span className={clsx('text-xs/4', done ? 'text-teal-700 dark:text-teal-400' : 'text-zinc-500 dark:text-zinc-400')}>
+            <span
+              className={clsx(
+                'text-xs/4',
+                done ? 'text-teal-700 dark:text-teal-400' : 'text-zinc-500 dark:text-zinc-400',
+              )}
+            >
               {done
                 ? t('file.milestoneDone', { w: m.week })
                 : t('file.milestoneNext', { w: m.week, date: short(addDays(lmp, m.week * 7)) })}

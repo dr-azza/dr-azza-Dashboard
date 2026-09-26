@@ -1,5 +1,12 @@
 import { Avatar } from '@/components/catalyst/avatar'
-import { Dropdown, DropdownButton, DropdownDivider, DropdownItem, DropdownLabel, DropdownMenu } from '@/components/catalyst/dropdown'
+import {
+  Dropdown,
+  DropdownButton,
+  DropdownDivider,
+  DropdownItem,
+  DropdownLabel,
+  DropdownMenu,
+} from '@/components/catalyst/dropdown'
 import { Navbar, NavbarItem, NavbarSection, NavbarSpacer } from '@/components/catalyst/navbar'
 import {
   Sidebar,
@@ -16,11 +23,7 @@ import { ThemeSwitcher, ThemeToggleButton } from '@/components/app/theme-switche
 import { AzzahAppIcon } from '@/components/brand/logo'
 import { formResponses, reminders } from '@/data/mock'
 import { useLang } from '@/i18n'
-import {
-  ArrowRightStartOnRectangleIcon,
-  ChevronUpIcon,
-  LanguageIcon,
-} from '@heroicons/react/16/solid'
+import { ArrowRightStartOnRectangleIcon, ChevronUpIcon, LanguageIcon } from '@heroicons/react/16/solid'
 import {
   BellAlertIcon,
   CalendarDaysIcon,

@@ -230,7 +230,8 @@ export const en = {
     bp: 'Blood pressure (if you have a home monitor)',
     systolic: 'Upper number',
     diastolic: 'Lower number',
-    warning: 'These answers need a quick check. The doctor is notified as soon as you send, and it is best to call the clinic now.',
+    warning:
+      'These answers need a quick check. The doctor is notified as soon as you send, and it is best to call the clinic now.',
     callClinic: 'Call the clinic',
     question: 'Question for the doctor (optional)',
     questionPlaceholder: 'Write your question here',
@@ -239,7 +240,8 @@ export const en = {
     emergency: 'In an emergency, go to the nearest hospital right away.',
     thanksTitle: 'Thank you, your answers were sent',
     thanksBody: 'The clinic team will review them. If anything needs attention, we will contact you.',
-    thanksUrgent: 'Because of your answers, the doctor has been alerted. Please call the clinic now if you have not already.',
+    thanksUrgent:
+      'Because of your answers, the doctor has been alerted. Please call the clinic now if you have not already.',
   },
 }
 

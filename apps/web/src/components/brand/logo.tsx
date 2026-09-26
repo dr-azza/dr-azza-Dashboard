@@ -19,7 +19,13 @@ type LogoProps = { className?: string; title?: string }
 /** Symbol only, used for app icons, avatars and tight spaces. */
 export function AzzahSymbol({ className, title = BRAND_NAME }: LogoProps) {
   return (
-    <svg viewBox={SYMBOL_VIEWBOX} role="img" aria-label={title} className={clsx(className, 'shrink-0')} fill="currentColor">
+    <svg
+      viewBox={SYMBOL_VIEWBOX}
+      role="img"
+      aria-label={title}
+      className={clsx(className, 'shrink-0')}
+      fill="currentColor"
+    >
       {SYMBOL_PATHS.map((d) => (
         <path key={d.slice(0, 24)} d={d} />
       ))}

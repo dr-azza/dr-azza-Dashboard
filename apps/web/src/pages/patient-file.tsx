@@ -112,9 +112,15 @@ export function PatientFilePage() {
               <Fact label={t('file.ga')} value={t('file.gaLong', { w: info.weeks, d: info.days })} />
             </>
           ) : (
-            <Fact label={t('patients.colStage')} value={patient.stage ? l(patient.stage) : t(`case.${patient.caseType}`)} />
+            <Fact
+              label={t('patients.colStage')}
+              value={patient.stage ? l(patient.stage) : t(`case.${patient.caseType}`)}
+            />
           )}
-          <Fact label={t('file.nextVisit')} value={patient.nextVisit ? l(patient.nextVisit) : t('patients.notBooked')} />
+          <Fact
+            label={t('file.nextVisit')}
+            value={patient.nextVisit ? l(patient.nextVisit) : t('patients.notBooked')}
+          />
         </dl>
       </Card>
 
@@ -139,7 +145,11 @@ export function PatientFilePage() {
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.7fr)_minmax(0,1fr)]">
         <div className="space-y-4">
           {patient.visits && (
-            <Card title={t('file.visits')} action={<Button outline>{t('file.addVisit')}</Button>} bodyClassName="px-5 pb-2">
+            <Card
+              title={t('file.visits')}
+              action={<Button outline>{t('file.addVisit')}</Button>}
+              bodyClassName="px-5 pb-2"
+            >
               <Table dense className="[--gutter:--spacing(5)]">
                 <TableHead>
                   <TableRow>
@@ -162,11 +172,18 @@ export function PatientFilePage() {
                         <TableCell className="tabular-nums">
                           {Math.floor(gaDays / 7)}+{gaDays % 7}
                         </TableCell>
-                        <TableCell className="tabular-nums">{v.weightKg ? `${v.weightKg.toFixed(1)} kg` : '—'}</TableCell>
-                        <TableCell className={clsx('tabular-nums', v.bpHigh && 'font-bold text-red-700 dark:text-red-400')} dir="ltr">
+                        <TableCell className="tabular-nums">
+                          {v.weightKg ? `${v.weightKg.toFixed(1)} kg` : '—'}
+                        </TableCell>
+                        <TableCell
+                          className={clsx('tabular-nums', v.bpHigh && 'font-bold text-red-700 dark:text-red-400')}
+                          dir="ltr"
+                        >
                           {v.bp ?? '—'}
                         </TableCell>
-                        <TableCell className="tabular-nums max-md:hidden">{v.fundalCm ? `${v.fundalCm} cm` : '—'}</TableCell>
+                        <TableCell className="tabular-nums max-md:hidden">
+                          {v.fundalCm ? `${v.fundalCm} cm` : '—'}
+                        </TableCell>
                         <TableCell className="tabular-nums max-md:hidden">{v.fhr ?? '—'}</TableCell>
                         <TableCell className="text-zinc-500 max-lg:hidden dark:text-zinc-400">{l(v.note)}</TableCell>
                       </TableRow>
@@ -198,7 +215,7 @@ export function PatientFilePage() {
                   <div
                     className={clsx(
                       'w-16 shrink-0 text-sm/6 font-semibold',
-                      task.urgent ? 'text-red-700 dark:text-red-400' : 'text-zinc-950 dark:text-white'
+                      task.urgent ? 'text-red-700 dark:text-red-400' : 'text-zinc-950 dark:text-white',
                     )}
                   >
                     {l(task.when)}
@@ -220,7 +237,12 @@ export function PatientFilePage() {
                     <div className="text-sm/6 font-medium text-zinc-950 dark:text-white">
                       {l(r.form)} · {l(r.when)}
                     </div>
-                    <div className={clsx('text-sm/5', r.status === 'flagged' ? 'text-red-700 dark:text-red-400' : 'text-zinc-500')}>
+                    <div
+                      className={clsx(
+                        'text-sm/5',
+                        r.status === 'flagged' ? 'text-red-700 dark:text-red-400' : 'text-zinc-500',
+                      )}
+                    >
                       {l(r.summary)}
                     </div>
                   </div>

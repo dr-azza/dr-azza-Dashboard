@@ -64,7 +64,10 @@ export function FormsPage() {
       </div>
 
       {sentCount !== null && (
-        <div role="status" className="flex items-center gap-3 rounded-xl bg-teal-50 px-5 py-3 text-sm/6 font-medium text-teal-900 ring-1 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-200 dark:ring-teal-900">
+        <div
+          role="status"
+          className="flex items-center gap-3 rounded-xl bg-teal-50 px-5 py-3 text-sm/6 font-medium text-teal-900 ring-1 ring-teal-200 dark:bg-teal-950/40 dark:text-teal-200 dark:ring-teal-900"
+        >
           <CheckCircleIcon className="size-5 fill-teal-600" />
           {t('forms.sent', { count: sentCount })}
         </div>
@@ -81,10 +84,15 @@ export function FormsPage() {
                 onClick={() => setSelected(f.id)}
                 className={clsx(
                   'rounded-lg px-3 py-2.5 text-start transition-colors',
-                  selected === f.id ? 'bg-brand-50 dark:bg-brand-950/50' : 'hover:bg-zinc-50 dark:hover:bg-white/5'
+                  selected === f.id ? 'bg-brand-50 dark:bg-brand-950/50' : 'hover:bg-zinc-50 dark:hover:bg-white/5',
                 )}
               >
-                <div className={clsx('text-sm/6 font-semibold', selected === f.id ? 'text-brand-700 dark:text-brand-300' : 'text-zinc-950 dark:text-white')}>
+                <div
+                  className={clsx(
+                    'text-sm/6 font-semibold',
+                    selected === f.id ? 'text-brand-700 dark:text-brand-300' : 'text-zinc-950 dark:text-white',
+                  )}
+                >
                   {l(f.name)}
                 </div>
                 <div className="text-xs/5 text-zinc-500 dark:text-zinc-400">
@@ -107,14 +115,16 @@ export function FormsPage() {
         >
           <Headless.TabGroup>
             <Headless.TabList className="flex gap-1 border-b border-zinc-950/10 dark:border-white/10">
-              {[t('forms.tabResponses', { count: newCount }), t('forms.tabQuestions'), t('forms.tabRules')].map((label) => (
-                <Headless.Tab
-                  key={label}
-                  className="-mb-px border-b-2 border-transparent px-3 py-2.5 text-sm/6 font-medium text-zinc-500 focus:outline-hidden data-focus:outline-2 data-focus:outline-brand-600 data-hover:text-zinc-950 data-selected:border-brand-600 data-selected:text-brand-700 dark:text-zinc-400 dark:data-selected:text-brand-300"
-                >
-                  {label}
-                </Headless.Tab>
-              ))}
+              {[t('forms.tabResponses', { count: newCount }), t('forms.tabQuestions'), t('forms.tabRules')].map(
+                (label) => (
+                  <Headless.Tab
+                    key={label}
+                    className="-mb-px border-b-2 border-transparent px-3 py-2.5 text-sm/6 font-medium text-zinc-500 focus:outline-hidden data-focus:outline-2 data-focus:outline-brand-600 data-hover:text-zinc-950 data-selected:border-brand-600 data-selected:text-brand-700 dark:text-zinc-400 dark:data-selected:text-brand-300"
+                  >
+                    {label}
+                  </Headless.Tab>
+                ),
+              )}
             </Headless.TabList>
             <Headless.TabPanels className="pt-2">
               <Headless.TabPanel>
@@ -135,10 +145,19 @@ export function FormsPage() {
                         <TableRow key={r.patientId} href={`/patients/${p.id}`} title={l(p.name)}>
                           <TableCell>
                             <div className="font-medium">{l(p.name)}</div>
-                            <div className="text-xs/5 text-zinc-500">{info && t('common.ga', { w: info.weeks, d: info.days })}</div>
+                            <div className="text-xs/5 text-zinc-500">
+                              {info && t('common.ga', { w: info.weeks, d: info.days })}
+                            </div>
                           </TableCell>
                           <TableCell className="text-zinc-500 max-sm:hidden">{l(r.when)}</TableCell>
-                          <TableCell className={clsx('whitespace-normal', r.status === 'flagged' ? 'font-semibold text-red-700 dark:text-red-400' : 'text-zinc-600 dark:text-zinc-400')}>
+                          <TableCell
+                            className={clsx(
+                              'whitespace-normal',
+                              r.status === 'flagged'
+                                ? 'font-semibold text-red-700 dark:text-red-400'
+                                : 'text-zinc-600 dark:text-zinc-400',
+                            )}
+                          >
                             {l(r.summary)}
                           </TableCell>
                           <TableCell>
@@ -154,7 +173,10 @@ export function FormsPage() {
               <Headless.TabPanel>
                 <ol className="mt-2 space-y-2">
                   {QUESTION_KEYS.map((key, i) => (
-                    <li key={key} className="flex items-center gap-3 rounded-lg bg-zinc-50 px-4 py-3 text-sm/6 dark:bg-white/5">
+                    <li
+                      key={key}
+                      className="flex items-center gap-3 rounded-lg bg-zinc-50 px-4 py-3 text-sm/6 dark:bg-white/5"
+                    >
                       <span className="flex size-6 items-center justify-center rounded-full bg-white text-xs font-semibold ring-1 ring-zinc-950/10 dark:bg-zinc-800">
                         {i + 1}
                       </span>
@@ -174,7 +196,7 @@ export function FormsPage() {
                         'rounded-full px-3 py-1.5 text-sm/5 font-semibold',
                         r.tone === 'danger' && 'bg-red-50 text-red-700 dark:bg-red-950/50 dark:text-red-300',
                         r.tone === 'warn' && 'bg-amber-50 text-amber-800 dark:bg-amber-950/50 dark:text-amber-300',
-                        r.tone === 'info' && 'bg-sky-50 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300'
+                        r.tone === 'info' && 'bg-sky-50 text-sky-800 dark:bg-sky-950/50 dark:text-sky-300',
                       )}
                     >
                       {t(`forms.${r.key}`)}
@@ -196,7 +218,10 @@ export function FormsPage() {
               <Label>{t('forms.recipients')}</Label>
               <div className="mt-3 flex flex-wrap gap-1.5">
                 {audience.map((p) => (
-                  <span key={p.id} className="rounded-md bg-brand-50 px-2 py-1 text-sm/5 font-medium text-brand-700 dark:bg-brand-950/50 dark:text-brand-300">
+                  <span
+                    key={p.id}
+                    className="rounded-md bg-brand-50 px-2 py-1 text-sm/5 font-medium text-brand-700 dark:bg-brand-950/50 dark:text-brand-300"
+                  >
                     {l(p.name)}
                   </span>
                 ))}
@@ -238,7 +263,10 @@ export function FormsPage() {
             <Field>
               <Label>{t('forms.preview')}</Label>
               <div className="mt-3 rounded-xl rounded-ss-sm bg-teal-50 px-4 py-3 text-sm/6 text-zinc-800 ring-1 ring-teal-100 dark:bg-teal-950/40 dark:text-zinc-200 dark:ring-teal-900">
-                {t('forms.previewText', { name: audience[0] ? l(audience[0].name).split(' ')[0] : '', link: `clinic.link/f/${lang}-•••` })}
+                {t('forms.previewText', {
+                  name: audience[0] ? l(audience[0].name).split(' ')[0] : '',
+                  link: `clinic.link/f/${lang}-•••`,
+                })}
               </div>
             </Field>
           </FieldGroup>

@@ -61,7 +61,9 @@ export function PublicFormPage() {
           <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
             <AzzahLockup className="mx-auto h-24 text-zinc-900 dark:text-white" />
             <CheckCircleIcon className="mx-auto mt-6 size-10 fill-teal-600" />
-            <h1 className="mt-4 text-xl/8 font-semibold text-zinc-950 dark:text-white">{t('publicForm.thanksTitle')}</h1>
+            <h1 className="mt-4 text-xl/8 font-semibold text-zinc-950 dark:text-white">
+              {t('publicForm.thanksTitle')}
+            </h1>
             <p className="mt-2 text-base/7 text-zinc-600 dark:text-zinc-400">{t('publicForm.thanksBody')}</p>
             {urgent && (
               <div className="mt-6 rounded-xl bg-red-50 p-4 text-start text-sm/6 font-medium text-red-900 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900">
@@ -84,7 +86,11 @@ export function PublicFormPage() {
             <div className="px-1">
               <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">{t('publicForm.hello', { name: firstName })}</p>
               <h1 className="mt-0.5 text-2xl/8 font-semibold text-zinc-950 dark:text-white">{t('publicForm.title')}</h1>
-              {info && <p className="mt-1 text-sm/6 text-zinc-500 dark:text-zinc-400">{t('publicForm.meta', { w: info.weeks, d: info.days })}</p>}
+              {info && (
+                <p className="mt-1 text-sm/6 text-zinc-500 dark:text-zinc-400">
+                  {t('publicForm.meta', { w: info.weeks, d: info.days })}
+                </p>
+              )}
             </div>
 
             <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
@@ -101,7 +107,7 @@ export function PublicFormPage() {
                         'min-h-12 rounded-xl px-2 text-sm/5 font-medium ring-1 transition',
                         feeling === f
                           ? 'bg-brand-50 text-brand-800 ring-2 ring-brand-600 dark:bg-brand-950/50 dark:text-brand-200'
-                          : 'bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-white/10'
+                          : 'bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-white/10',
                       )}
                     >
                       {t(`publicForm.${f}`)}
@@ -131,18 +137,37 @@ export function PublicFormPage() {
                 <div className="mt-4 grid grid-cols-2 gap-3" dir="ltr">
                   <Field>
                     <Label>{t('publicForm.systolic')}</Label>
-                    <Input inputMode="numeric" type="number" min={60} max={250} value={systolic} onChange={(e) => setSystolic(e.target.value)} placeholder="120" />
+                    <Input
+                      inputMode="numeric"
+                      type="number"
+                      min={60}
+                      max={250}
+                      value={systolic}
+                      onChange={(e) => setSystolic(e.target.value)}
+                      placeholder="120"
+                    />
                   </Field>
                   <Field>
                     <Label>{t('publicForm.diastolic')}</Label>
-                    <Input inputMode="numeric" type="number" min={30} max={160} value={diastolic} onChange={(e) => setDiastolic(e.target.value)} placeholder="80" />
+                    <Input
+                      inputMode="numeric"
+                      type="number"
+                      min={30}
+                      max={160}
+                      value={diastolic}
+                      onChange={(e) => setDiastolic(e.target.value)}
+                      placeholder="80"
+                    />
                   </Field>
                 </div>
               </Fieldset>
             </section>
 
             {urgent && (
-              <div role="alert" className="flex gap-3 rounded-2xl bg-red-50 p-5 text-red-900 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900">
+              <div
+                role="alert"
+                className="flex gap-3 rounded-2xl bg-red-50 p-5 text-red-900 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900"
+              >
                 <ExclamationTriangleIcon className="size-6 shrink-0 fill-red-600" />
                 <div className="space-y-3">
                   <p className="text-sm/6 font-medium">{t('publicForm.warning')}</p>
@@ -157,7 +182,13 @@ export function PublicFormPage() {
             <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
               <Field>
                 <Label className="text-base/7! font-semibold!">{t('publicForm.question')}</Label>
-                <Textarea rows={3} value={question} onChange={(e) => setQuestion(e.target.value)} placeholder={t('publicForm.questionPlaceholder')} className="mt-3" />
+                <Textarea
+                  rows={3}
+                  value={question}
+                  onChange={(e) => setQuestion(e.target.value)}
+                  placeholder={t('publicForm.questionPlaceholder')}
+                  className="mt-3"
+                />
               </Field>
             </section>
 

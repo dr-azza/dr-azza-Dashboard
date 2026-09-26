@@ -49,7 +49,7 @@ export function ThemeSwitcher({ className }: { className?: string }) {
                     'relative flex size-7 items-center justify-center rounded-full transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-brand-600',
                     active
                       ? 'text-brand-700 dark:text-brand-200'
-                      : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white'
+                      : 'text-zinc-500 hover:text-zinc-950 dark:text-zinc-400 dark:hover:text-white',
                   )}
                 >
                   {active && (
@@ -86,7 +86,7 @@ export function ThemeToggleButton({ className }: { className?: string }) {
         title={t(`theme.${next}`)}
         className={clsx(
           className,
-          'relative flex size-10 items-center justify-center overflow-hidden rounded-full text-zinc-600 ring-1 ring-zinc-950/10 transition-colors hover:bg-zinc-950/5 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-zinc-300 dark:ring-white/15 dark:hover:bg-white/10 dark:hover:text-white'
+          'relative flex size-10 items-center justify-center overflow-hidden rounded-full text-zinc-600 ring-1 ring-zinc-950/10 transition-colors hover:bg-zinc-950/5 hover:text-zinc-950 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-600 dark:text-zinc-300 dark:ring-white/15 dark:hover:bg-white/10 dark:hover:text-white',
         )}
       >
         <AnimatePresence initial={false} mode="popLayout">

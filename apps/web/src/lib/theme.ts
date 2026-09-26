@@ -41,7 +41,7 @@ function subscribe(listener: () => void) {
 export function useTheme() {
   const theme = useSyncExternalStore(subscribe, () => pref)
   const resolved = useSyncExternalStore(subscribe, () =>
-    pref === 'dark' || (pref === 'system' && media.matches) ? 'dark' : 'light'
+    pref === 'dark' || (pref === 'system' && media.matches) ? 'dark' : 'light',
   )
   return { theme, resolved, setTheme }
 }

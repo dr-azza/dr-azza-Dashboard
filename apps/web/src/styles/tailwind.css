@@ -61,7 +61,6 @@
   }
 }
 
-
 @layer base {
   /* Match the layout background so there is no white flash before React renders. */
   html {

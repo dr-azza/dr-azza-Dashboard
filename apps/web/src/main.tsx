@@ -15,9 +15,15 @@ const router = createBrowserRouter([
     children: [
       { path: '/', lazy: () => import('@/pages/overview').then((m) => ({ Component: m.OverviewPage })) },
       { path: '/patients', lazy: () => import('@/pages/patients').then((m) => ({ Component: m.PatientsPage })) },
-      { path: '/patients/:id', lazy: () => import('@/pages/patient-file').then((m) => ({ Component: m.PatientFilePage })) },
+      {
+        path: '/patients/:id',
+        lazy: () => import('@/pages/patient-file').then((m) => ({ Component: m.PatientFilePage })),
+      },
       { path: '/pregnancy', lazy: () => import('@/pages/pregnancy').then((m) => ({ Component: m.PregnancyPage })) },
-      { path: '/appointments', lazy: () => import('@/pages/simple-pages').then((m) => ({ Component: m.AppointmentsPage })) },
+      {
+        path: '/appointments',
+        lazy: () => import('@/pages/simple-pages').then((m) => ({ Component: m.AppointmentsPage })),
+      },
       { path: '/forms', lazy: () => import('@/pages/forms').then((m) => ({ Component: m.FormsPage })) },
       { path: '/reminders', lazy: () => import('@/pages/simple-pages').then((m) => ({ Component: m.RemindersPage })) },
       { path: '/settings', lazy: () => import('@/pages/simple-pages').then((m) => ({ Component: m.SettingsPage })) },
@@ -34,5 +40,5 @@ const router = createBrowserRouter([
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <RouterProvider router={router} />
-  </StrictMode>
+  </StrictMode>,
 )

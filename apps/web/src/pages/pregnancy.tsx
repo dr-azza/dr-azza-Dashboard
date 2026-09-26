@@ -21,7 +21,9 @@ export function PregnancyPage() {
     <div className="space-y-6">
       <div>
         <Heading className="headline">{t('nav.pregnancy')}</Heading>
-        <Text className="mt-1">{t('overview.statPregnancies')}: {rows.length}</Text>
+        <Text className="mt-1">
+          {t('overview.statPregnancies')}: {rows.length}
+        </Text>
       </div>
       <Table className="[--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
         <TableHead>
@@ -45,15 +47,24 @@ export function PregnancyPage() {
                     <span className="font-medium">{l(patient.name)}</span>
                   </div>
                 </TableCell>
-                <TableCell className="font-medium tabular-nums">{t('common.ga', { w: info.weeks, d: info.days })}</TableCell>
+                <TableCell className="font-medium tabular-nums">
+                  {t('common.ga', { w: info.weeks, d: info.days })}
+                </TableCell>
                 <TableCell className="max-md:hidden">
                   <div className="h-2 overflow-hidden rounded-full bg-zinc-200 dark:bg-zinc-700">
-                    <div className="h-full rounded-full bg-brand-600" style={{ width: `${weekPercent(info.weeks + info.days / 7)}%` }} />
+                    <div
+                      className="h-full rounded-full bg-brand-600"
+                      style={{ width: `${weekPercent(info.weeks + info.days / 7)}%` }}
+                    />
                   </div>
                 </TableCell>
                 <TableCell className="tabular-nums">{short(info.edd)}</TableCell>
                 <TableCell className="text-zinc-500 max-lg:hidden dark:text-zinc-400">
-                  {next ? `${l(next.name)} · ${short(addDays(info.lmp, next.week * 7))}` : patient.dueNote ? l(patient.dueNote) : '—'}
+                  {next
+                    ? `${l(next.name)} · ${short(addDays(info.lmp, next.week * 7))}`
+                    : patient.dueNote
+                      ? l(patient.dueNote)
+                      : '—'}
                 </TableCell>
                 <TableCell>
                   <StatusBadge kind="patient" status={patient.status} />

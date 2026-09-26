@@ -22,7 +22,12 @@ export function ToneBadge({ tone, children }: { tone: Tone; children: React.Reac
 const patientTone: Record<PatientStatus, Tone> = { ok: 'ok', flagged: 'danger', overdue: 'warn', awaiting: 'info' }
 const appointmentTone: Record<AppointmentStatus, Tone> = { done: 'ok', checkedIn: 'info', upcoming: 'neutral' }
 const deliveryTone: Record<DeliveryStatus, Tone> = { queued: 'neutral', sent: 'ok', failed: 'danger' }
-const responseTone: Record<ResponseStatus, Tone> = { flagged: 'danger', new: 'info', reviewed: 'ok', noAnswer: 'neutral' }
+const responseTone: Record<ResponseStatus, Tone> = {
+  flagged: 'danger',
+  new: 'info',
+  reviewed: 'ok',
+  noAnswer: 'neutral',
+}
 
 type StatusProps =
   | { kind: 'patient'; status: PatientStatus }
@@ -73,10 +78,7 @@ export function Card({
 }) {
   return (
     <section
-      className={clsx(
-        className,
-        'rounded-xl bg-white ring-1 ring-zinc-950/8 dark:bg-zinc-900 dark:ring-white/10'
-      )}
+      className={clsx(className, 'rounded-xl bg-white ring-1 ring-zinc-950/8 dark:bg-zinc-900 dark:ring-white/10')}
     >
       {(title || action) && (
         <header className="flex items-center gap-3 px-5 pt-4 pb-2">
@@ -106,7 +108,7 @@ export function StatCard({
       <div
         className={clsx(
           'mt-2 font-display text-4xl/10 font-semibold tabular-nums',
-          tone === 'danger' ? 'text-red-700 dark:text-red-400' : 'text-zinc-950 dark:text-white'
+          tone === 'danger' ? 'text-red-700 dark:text-red-400' : 'text-zinc-950 dark:text-white',
         )}
       >
         {value}
@@ -116,7 +118,7 @@ export function StatCard({
           'mt-2 text-sm/6',
           tone === 'danger' && 'text-red-700 dark:text-red-400',
           tone === 'brand' && 'font-medium text-brand-700 dark:text-brand-300',
-          tone === 'neutral' && 'text-zinc-500 dark:text-zinc-400'
+          tone === 'neutral' && 'text-zinc-500 dark:text-zinc-400',
         )}
       >
         {note}
@@ -142,7 +144,7 @@ export function Dot({ severity }: { severity: 'high' | 'medium' | 'low' }) {
         'size-2.5 shrink-0 rounded-full',
         severity === 'high' && 'bg-red-600',
         severity === 'medium' && 'bg-amber-500',
-        severity === 'low' && 'bg-zinc-400'
+        severity === 'low' && 'bg-zinc-400',
       )}
     />
   )
