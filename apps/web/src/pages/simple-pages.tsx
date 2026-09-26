@@ -65,7 +65,7 @@ export function AppointmentsPage() {
           {schedule.map((s) => {
             const p = findPatient(s.patientId)!
             return (
-              <TableRow key={s.time} href={`/patients/${p.id}`} title={l(p.name)}>
+              <TableRow key={s.time} href={`/patients?q=${encodeURIComponent(p.name.en)}`} title={l(p.name)}>
                 <TableCell className="font-semibold tabular-nums">{s.time}</TableCell>
                 <TableCell>
                   <div className="font-medium">{l(p.name)}</div>

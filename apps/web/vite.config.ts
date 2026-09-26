@@ -10,5 +10,9 @@ export default defineConfig({
     // Read workspace packages from their TypeScript source: no package build needed in dev, instant HMR.
     conditions: ['source', ...defaultClientConditions],
   },
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    // Same-origin API in development: cookies just work and no CORS is involved.
+    proxy: { '/api': { target: 'http://localhost:4100', changeOrigin: false } },
+  },
 })

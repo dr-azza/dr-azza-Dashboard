@@ -59,12 +59,25 @@ pnpm --filter @azza/api db:seed              # sample clinic, staff and patients
 pnpm dev:api
 ```
 
+Sign in to the dashboard with `doctor@azzah.test` (also `nurse@` and `reception@`) and the `SEED_STAFF_PASSWORD` from your `apps/api/.env`. The web dev server proxies `/api` to the API, so the session cookie is same-origin.
+
+Integration tests run against a separate database. Create it once with `docker compose exec postgres createdb -U azzah azzah_test`, then:
+
+```sh
+DATABASE_URL=<TEST_DATABASE_URL> pnpm --filter @azza/api exec prisma migrate deploy
+pnpm --filter @azza/api test:integration
+```
+
 - **Routes** are versioned under `/api/v1/…`. Health is at `/api/health`, and OpenAPI docs are at `/api/docs` (not served in production). The mobile app can generate its client from `/api/docs-json`.
 - **Schema:** `apps/api/prisma/schema.prisma`. Every clinical record belongs to a clinic (multi-clinic ready), IDs are UUIDv7, patients are archived rather than deleted, form links store only a hash of their token, and there is an append-only `audit_logs` table.
 - **Clinical rules** (blood-pressure limits, red-flag symptoms, pregnancy dating) come from `@azza/shared`, so the API, the web form and the mobile app always agree. `POST /api/v1/checkins/evaluate` exposes them.
 - **Environment** is validated at startup (`src/config/env.ts`). The API refuses to start with missing or invalid config.
 - **Security:** Helmet headers, CORS limited to `CORS_ORIGINS`, rate limiting (300 requests per minute per IP) and a 1 MB body limit.
-- **Not yet built:** staff authentication and role-based access. Until it exists, no endpoint returns patient data.
+- **Auth:** staff sign in with email and password (Argon2id). A random session token is set as an httpOnly, SameSite=Lax cookie (the mobile app will send it as a bearer token), and the database stores only its SHA-256. Sessions slide for `SESSION_TTL_HOURS`. Every route requires a session unless marked `@Public()`.
+- **Patient record** (`/api/v1/patients/:patientId/…`): profile, timeline, medical/gynecological history, previous pregnancies, pregnancies, visits, prescriptions (immutable; voided, never edited), payments (Decimal money; voided, never deleted) with proof uploads, files (lab results, scans; type detected from the bytes, 10 MB max, stored outside the database) and notes.
+- **Isolation:** every query is scoped to the signed-in staff member's clinic. Another clinic's patient returns 404.
+- **Audit:** every read and change of patient data is written to `audit_logs` (who, what, which record), with identifiers only.
+- **Not yet built:** role-based permissions. For now every signed-in staff member sees everything, by decision.
 
 ## Web app notes
 
@@ -72,7 +85,7 @@ pnpm dev:api
 - **Theme:** Light, Dark and System, saved per browser. It is applied before first paint by the inline script in `index.html`, which must stay in sync with `src/lib/theme.ts`. Brand colours come from the AZZAH guidelines: plum `#9B176A` (`brand-600`), Space Cadet `#25283D` (`zinc-900`, also the dark-mode surface) and the secondary palette (`melon`, `dogwood`, `seashell`, `champagne`, `peach`), all defined in `src/styles/tailwind.css`. Latin page headings use the `headline` utility (uppercase, 0.1em tracking), per the brand rules.
 - **Performance:** every route is lazy-loaded, so the patient form (`/f/:token`) never downloads the staff dashboard. Fonts are self-hosted: IBM Plex Sans Arabic (free, OFL), which includes matching Latin, for both Arabic and English.
 - **Logo:** use `AzzahSymbol`, `AzzahLockup` or `AzzahAppIcon` from `components/brand/logo`. They are drawn from the official `LogoFf.ai` artwork. Don't redraw, recolor outside the official variants, or add effects.
-- **Data:** `src/data/mock.ts` stands in for the API until it exists.
+- **Data:** the Patients list, patient file and pregnancy list use the API (TanStack Query). The Overview, Forms, Appointments and Reminders pages still show sample data from `src/data/mock.ts`.
 
 ## Contributing
 

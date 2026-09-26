@@ -142,7 +142,11 @@ export function FormsPage() {
                       const p = findPatient(r.patientId)!
                       const info = pregnancyInfo(p, today)
                       return (
-                        <TableRow key={r.patientId} href={`/patients/${p.id}`} title={l(p.name)}>
+                        <TableRow
+                          key={r.patientId}
+                          href={`/patients?q=${encodeURIComponent(p.name.en)}`}
+                          title={l(p.name)}
+                        >
                           <TableCell>
                             <div className="font-medium">{l(p.name)}</div>
                             <div className="text-xs/5 text-zinc-500">

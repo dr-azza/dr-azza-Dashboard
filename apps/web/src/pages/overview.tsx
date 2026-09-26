@@ -117,7 +117,7 @@ export function OverviewPage() {
                 const p = findPatient(s.patientId)!
                 const info = pregnancyInfo(p, today)
                 return (
-                  <TableRow key={s.time} href={`/patients/${p.id}`} title={l(p.name)}>
+                  <TableRow key={s.time} href={`/patients?q=${encodeURIComponent(p.name.en)}`} title={l(p.name)}>
                     <TableCell className="font-semibold tabular-nums">{s.time}</TableCell>
                     <TableCell>
                       <div className="font-medium">{l(p.name)}</div>
@@ -155,7 +155,7 @@ export function OverviewPage() {
                     {l(p.name)} · {l(a.detail)}
                   </div>
                 </div>
-                <Button outline href={`/patients/${p.id}`}>
+                <Button outline href={`/patients?q=${encodeURIComponent(p.name.en)}`}>
                   {t(`common.${a.action}`)}
                 </Button>
               </ListRow>
@@ -206,7 +206,7 @@ export function OverviewPage() {
               </div>
               <div className="min-w-0 flex-1">
                 <Link
-                  href={`/patients/${patient.id}`}
+                  href={`/patients?q=${encodeURIComponent(patient.name.en)}`}
                   className="text-sm/6 font-medium text-zinc-950 hover:underline dark:text-white"
                 >
                   {l(patient.name)}

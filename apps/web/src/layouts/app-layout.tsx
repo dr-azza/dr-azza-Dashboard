@@ -21,6 +21,7 @@ import {
 import { SidebarLayout } from '@/components/catalyst/sidebar-layout'
 import { ThemeSwitcher, ThemeToggleButton } from '@/components/app/theme-switcher'
 import { AzzahAppIcon } from '@/components/brand/logo'
+import { initials as initialsOf } from '@/components/app/ui'
 import { formResponses, reminders } from '@/data/mock'
 import { useLang } from '@/i18n'
 import { ArrowRightStartOnRectangleIcon, ChevronUpIcon, LanguageIcon } from '@heroicons/react/16/solid'
@@ -33,7 +34,11 @@ import {
   HomeIcon,
   UsersIcon,
 } from '@heroicons/react/20/solid'
-import { Outlet, useLocation } from 'react-router'
+import { UNAUTHORIZED_EVENT } from '@/lib/api'
+import { useLogout, useMe } from '@/lib/queries'
+import { useQueryClient } from '@tanstack/react-query'
+import { useEffect } from 'react'
+import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
 
 function CountBadge({ count }: { count: number }) {
   if (!count) return null
@@ -44,9 +49,26 @@ function CountBadge({ count }: { count: number }) {
   )
 }
 
+/** Staff dashboard shell. Everything inside requires a signed-in staff member. */
 export function AppLayout() {
   const { t, toggle } = useLang()
-  const { pathname } = useLocation()
+  const { pathname, search } = useLocation()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
+  const me = useMe()
+  const logout = useLogout()
+
+  // Any 401 from the API (e.g. an expired session) sends the user to sign in, then back here.
+  useEffect(() => {
+    const onUnauthorized = () => {
+      queryClient.clear()
+      navigate(`/login?next=${encodeURIComponent(pathname + search)}`, { replace: true })
+    }
+    window.addEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+    return () => window.removeEventListener(UNAUTHORIZED_EVENT, onUnauthorized)
+  }, [navigate, pathname, queryClient, search])
+
+  const initials = initialsOf(me.data?.fullName ?? '')
   const is = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 
   const newResponses = formResponses.filter((r) => r.status === 'flagged' || r.status === 'new').length
@@ -63,12 +85,17 @@ export function AppLayout() {
         <DropdownLabel>{t('nav.settings')}</DropdownLabel>
       </DropdownItem>
       <DropdownDivider />
-      <DropdownItem href="#sign-out">
+      <DropdownItem
+        onClick={() => logout.mutate(undefined, { onSettled: () => navigate('/login', { replace: true }) })}
+      >
         <ArrowRightStartOnRectangleIcon className="rtl:-scale-x-100" />
         <DropdownLabel>{t('nav.signOut')}</DropdownLabel>
       </DropdownItem>
     </DropdownMenu>
   )
+
+  if (me.isPending) return <div className="min-h-svh" />
+  if (me.isError) return <Navigate to={`/login?next=${encodeURIComponent(pathname + search)}`} replace />
 
   return (
     <SidebarLayout
@@ -83,7 +110,7 @@ export function AppLayout() {
             </NavbarItem>
             <Dropdown>
               <DropdownButton as={NavbarItem}>
-                <Avatar initials="DR" square className="bg-brand-100 text-brand-700" />
+                <Avatar initials={initials} square className="bg-brand-100 text-brand-700" />
               </DropdownButton>
               {userMenu('bottom end')}
             </Dropdown>
@@ -153,13 +180,13 @@ export function AppLayout() {
             <Dropdown>
               <DropdownButton as={SidebarItem}>
                 <span className="flex min-w-0 items-center gap-3">
-                  <Avatar initials="DR" className="size-10 bg-brand-100 text-brand-700" square />
+                  <Avatar initials={initials} className="size-10 bg-brand-100 text-brand-700" square />
                   <span className="min-w-0">
                     <span className="block truncate text-sm/5 font-medium text-zinc-950 dark:text-white">
-                      {t('app.doctorName')}
+                      {me.data.fullName}
                     </span>
                     <span className="block truncate text-xs/5 font-normal text-zinc-500 dark:text-zinc-400">
-                      {t('app.doctorRole')}
+                      {me.data.email}
                     </span>
                   </span>
                 </span>

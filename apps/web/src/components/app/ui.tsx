@@ -48,9 +48,10 @@ export function StatusBadge(props: StatusProps) {
   return <ToneBadge tone={tone}>{t(`status.${props.status}`)}</ToneBadge>
 }
 
+/** Up to two initials from the name's words, ignoring punctuation such as "(sample)". */
 export function initials(name: string) {
-  const parts = name.trim().split(/\s+/)
-  return (parts[0]?.[0] ?? '') + (parts.length > 1 ? parts[parts.length - 1][0] : '')
+  const words = name.match(/\p{L}[\p{L}\p{M}'’-]*/gu) ?? []
+  return ((words[0]?.[0] ?? '') + (words.length > 1 ? words[words.length - 1][0] : '')).toUpperCase()
 }
 
 export function PatientAvatar({ name, className }: { name: string; className?: string }) {

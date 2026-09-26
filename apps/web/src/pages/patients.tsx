@@ -1,83 +1,76 @@
-import { PatientAvatar, StatusBadge } from '@/components/app/ui'
+import { formatPhone, RequestError, useFormat } from '@/components/app/form'
+import { PatientAvatar, ToneBadge } from '@/components/app/ui'
 import { Button } from '@/components/catalyst/button'
 import { Heading } from '@/components/catalyst/heading'
 import { Input, InputGroup } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
-import { patients } from '@/data/mock'
+import { caseKey, statusKey, statusTone } from '@/components/patient/labels'
+import { NewPatientDialog } from '@/components/patient/new-patient-dialog'
 import { useLang } from '@/i18n'
-import { pregnancyInfo, type CaseType, type PatientStatus } from '@azza/shared'
-import { ArrowDownTrayIcon, MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/16/solid'
+import { usePatients } from '@/lib/queries'
+import { CASE_TYPES, type CaseTypeCode, PATIENT_STATUSES, type PatientStatusCode } from '@azza/shared'
+import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
-import { useMemo } from 'react'
+import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router'
 
-const CASES: (CaseType | 'all')[] = ['all', 'pregnancy', 'gynecology', 'postpartum', 'fertility']
-const STATUSES: (PatientStatus | 'all')[] = ['all', 'flagged', 'overdue', 'awaiting', 'ok']
-const STATUS_ORDER: Record<PatientStatus, number> = { flagged: 0, overdue: 1, awaiting: 2, ok: 3 }
+/** Waits until typing pauses, so search doesn't fire a request per keystroke. */
+function useDebounced<T>(value: T, ms = 300) {
+  const [debounced, setDebounced] = useState(value)
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(value), ms)
+    return () => clearTimeout(id)
+  }, [value, ms])
+  return debounced
+}
 
 export function PatientsPage() {
-  const { t, l } = useLang()
-  const today = useMemo(() => new Date(), [])
+  const { t } = useLang()
+  const fmt = useFormat()
   const [params, setParams] = useSearchParams()
-  const q = params.get('q') ?? ''
-  const caseFilter = (params.get('case') ?? 'all') as CaseType | 'all'
-  const statusFilter = (params.get('status') ?? 'all') as PatientStatus | 'all'
+  const [newOpen, setNewOpen] = useState(false)
+  const [q, setQ] = useState(params.get('q') ?? '')
+  const caseType = (params.get('case') ?? undefined) as CaseTypeCode | undefined
+  const status = (params.get('status') ?? undefined) as PatientStatusCode | undefined
+  const query = useDebounced(q.trim())
 
-  const update = (key: string, value: string) => {
-    const next = new URLSearchParams(params)
-    if (!value || value === 'all') next.delete(key)
-    else next.set(key, value)
-    setParams(next, { replace: true })
-  }
-
-  const query = q.trim().toLowerCase()
-  const rows = patients
-    .filter((p) => caseFilter === 'all' || p.caseType === caseFilter)
-    .filter((p) => statusFilter === 'all' || p.status === statusFilter)
-    .filter(
-      (p) =>
-        !query ||
-        p.name.en.toLowerCase().includes(query) ||
-        p.name.ar.includes(q.trim()) ||
-        p.file.toLowerCase().includes(query) ||
-        p.phone.replace(/\s/g, '').includes(query.replace(/\s/g, '')),
+  const update = (key: string, value?: string) => {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev)
+        if (value) next.set(key, value)
+        else next.delete(key)
+        return next
+      },
+      { replace: true },
     )
-    .sort((a, b) => STATUS_ORDER[a.status] - STATUS_ORDER[b.status])
+  }
+  // Keep the search in the URL so it survives reloads and can be shared.
+  useEffect(() => update('q', query || undefined), [query]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  const count = (c: CaseType | 'all') =>
-    c === 'all' ? patients.length : patients.filter((p) => p.caseType === c).length
+  const patients = usePatients({ q: query || undefined, caseType, status })
+  const rows = patients.data?.pages.flatMap((p) => p.items) ?? []
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end gap-4">
         <div className="min-w-0 flex-1">
           <Heading className="headline">{t('patients.title')}</Heading>
-          <Text className="mt-1">
-            {t('patients.subtitle', {
-              total: patients.length,
-              preg: patients.filter((p) => p.caseType === 'pregnancy').length,
-              overdue: patients.filter((p) => p.status === 'overdue').length,
-            })}
-          </Text>
         </div>
         <div className="flex w-full flex-wrap gap-3 sm:w-auto">
-          <InputGroup className="flex-1 sm:w-72">
+          <InputGroup className="flex-1 sm:w-80">
             <MagnifyingGlassIcon data-slot="icon" />
             <Input
               type="search"
               aria-label={t('common.search')}
               placeholder={t('common.searchPatients')}
               value={q}
-              onChange={(e) => update('q', e.target.value)}
+              onChange={(e) => setQ(e.target.value)}
             />
           </InputGroup>
-          <Button outline>
-            <ArrowDownTrayIcon />
-            {t('common.export')}
-          </Button>
-          <Button color="brand">
+          <Button color="brand" onClick={() => setNewOpen(true)}>
             <PlusIcon />
             {t('common.newPatient')}
           </Button>
@@ -85,39 +78,47 @@ export function PatientsPage() {
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        {CASES.map((c) => (
+        {([undefined, ...CASE_TYPES] as (CaseTypeCode | undefined)[]).map((c) => (
           <button
-            key={c}
+            key={c ?? 'all'}
             type="button"
-            aria-pressed={caseFilter === c}
+            aria-pressed={caseType === c}
             onClick={() => update('case', c)}
             className={clsx(
               'rounded-full px-3.5 py-1.5 text-sm/6 font-medium ring-1 transition-colors',
-              caseFilter === c
+              caseType === c
                 ? 'bg-brand-600 text-white ring-brand-600'
                 : 'bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50 dark:bg-zinc-900 dark:text-zinc-300 dark:ring-white/10',
             )}
           >
-            {c === 'all' ? t('patients.all') : t(`case.${c}`)}{' '}
-            <span className="tabular-nums opacity-70">· {count(c)}</span>
+            {c ? t(caseKey(c)) : t('patients.all')}
           </button>
         ))}
         <div className="ms-auto w-48">
           <Select
             aria-label={t('patients.statusFilter')}
-            value={statusFilter}
-            onChange={(e) => update('status', e.target.value)}
+            value={status ?? ''}
+            onChange={(e) => update('status', e.target.value || undefined)}
           >
-            {STATUSES.map((s) => (
+            <option value="">{t('patients.allStatuses')}</option>
+            {PATIENT_STATUSES.map((s) => (
               <option key={s} value={s}>
-                {s === 'all' ? t('patients.allStatuses') : t(`status.${s}`)}
+                {t(statusKey(s))}
               </option>
             ))}
           </Select>
         </div>
       </div>
 
-      <Table striped className="[--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
+      <RequestError error={patients.error} />
+
+      <Table
+        striped
+        className={clsx(
+          '[--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]',
+          patients.isFetching && !patients.isFetchingNextPage && 'opacity-70',
+        )}
+      >
         <TableHead>
           <TableRow>
             <TableHeader>{t('patients.colPatient')}</TableHeader>
@@ -125,51 +126,54 @@ export function PatientsPage() {
             <TableHeader className="max-lg:hidden">{t('patients.colPhone')}</TableHeader>
             <TableHeader>{t('patients.colCase')}</TableHeader>
             <TableHeader>{t('patients.colStage')}</TableHeader>
-            <TableHeader className="max-md:hidden">{t('patients.colNext')}</TableHeader>
-            <TableHeader className="max-xl:hidden">{t('patients.colLast')}</TableHeader>
+            <TableHeader className="max-md:hidden">{t('patients.colLast')}</TableHeader>
             <TableHeader>{t('patients.colStatus')}</TableHeader>
           </TableRow>
         </TableHead>
         <TableBody>
-          {rows.map((p) => {
-            const info = pregnancyInfo(p, today)
-            return (
-              <TableRow key={p.id} href={`/patients/${p.id}`} title={l(p.name)}>
-                <TableCell>
-                  <div className="flex items-center gap-3">
-                    <PatientAvatar name={p.name.en} className="size-9" />
-                    <div>
-                      <div className="font-medium">{l(p.name)}</div>
-                      <div className="text-xs/5 text-zinc-500 dark:text-zinc-400">{p.file}</div>
+          {rows.map((p) => (
+            <TableRow key={p.id} href={`/patients/${p.id}`} title={p.fullName}>
+              <TableCell>
+                <div className="flex items-center gap-3">
+                  <PatientAvatar name={p.fullName} className="size-9" />
+                  <div>
+                    <div className="font-medium">{p.fullName}</div>
+                    <div className="text-xs/5 text-zinc-500 dark:text-zinc-400">
+                      {p.fileNumber}
+                      {p.fullNameAr && <span lang="ar"> · {p.fullNameAr}</span>}
                     </div>
                   </div>
-                </TableCell>
-                <TableCell className="tabular-nums max-md:hidden">{p.age}</TableCell>
-                <TableCell className="text-zinc-500 tabular-nums max-lg:hidden" dir="ltr">
-                  {p.phone}
-                </TableCell>
-                <TableCell>{t(`case.${p.caseType}`)}</TableCell>
-                <TableCell className="font-medium">
-                  {info ? t('common.ga', { w: info.weeks, d: info.days }) : p.stage && l(p.stage)}
-                </TableCell>
-                <TableCell className="max-md:hidden">
-                  {p.nextVisit ? l(p.nextVisit) : <span className="text-amber-700">{t('patients.notBooked')}</span>}
-                </TableCell>
-                <TableCell className="text-zinc-500 max-xl:hidden">{l(p.lastContact)}</TableCell>
-                <TableCell>
-                  <StatusBadge kind="patient" status={p.status} />
-                </TableCell>
-              </TableRow>
-            )
-          })}
+                </div>
+              </TableCell>
+              <TableCell className="tabular-nums max-md:hidden">{p.age ?? '—'}</TableCell>
+              <TableCell className="text-zinc-500 tabular-nums max-lg:hidden" dir="ltr">
+                {formatPhone(p.phone)}
+              </TableCell>
+              <TableCell>{t(caseKey(p.caseType))}</TableCell>
+              <TableCell className="font-medium tabular-nums">
+                {p.activePregnancy ? t('common.ga', { w: p.activePregnancy.weeks, d: p.activePregnancy.days }) : '—'}
+              </TableCell>
+              <TableCell className="text-zinc-500 max-md:hidden">
+                {p.lastVisitAt ? fmt.day(p.lastVisitAt) : '—'}
+              </TableCell>
+              <TableCell>
+                <ToneBadge tone={statusTone[p.status]}>{t(statusKey(p.status))}</ToneBadge>
+              </TableCell>
+            </TableRow>
+          ))}
         </TableBody>
       </Table>
 
-      {rows.length === 0 ? (
-        <Text className="py-10 text-center">{t('patients.empty')}</Text>
-      ) : (
-        <Text>{t('patients.showing', { shown: rows.length, total: patients.length })}</Text>
+      {!patients.isPending && rows.length === 0 && <Text className="py-10 text-center">{t('patients.empty')}</Text>}
+      {patients.hasNextPage && (
+        <div className="flex justify-center">
+          <Button outline onClick={() => patients.fetchNextPage()} disabled={patients.isFetchingNextPage}>
+            {t('record.loadMore')}
+          </Button>
+        </div>
       )}
+
+      <NewPatientDialog open={newOpen} onClose={() => setNewOpen(false)} />
     </div>
   )
 }

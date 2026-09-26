@@ -1,0 +1,222 @@
+import type {
+  AttachmentDto,
+  AttachmentKindCode,
+  CaseTypeCode,
+  CreateNoteInput,
+  CreatePatientInput,
+  CreatePaymentInput,
+  CreatePregnancyInput,
+  CreatePrescriptionInput,
+  CreateVisitInput,
+  LoginInput,
+  MedicalHistoryDto,
+  MedicalHistoryInput,
+  MeDto,
+  NoteDto,
+  ObstetricEntryDto,
+  ObstetricEntryInput,
+  Page,
+  PatientDto,
+  PatientListItemDto,
+  PatientStatusCode,
+  PaymentDto,
+  PaymentsDto,
+  PregnancyDto,
+  PrescriptionDto,
+  TimelineEventDto,
+  UpdatePatientInput,
+  VisitDto,
+} from '@azza/shared'
+import { keepPreviousData, useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { api } from './api'
+
+/** Query keys in one place, so invalidation after a change is exact. */
+export const keys = {
+  me: ['me'] as const,
+  patients: (filters: object) => ['patients', filters] as const,
+  patient: (id: string) => ['patient', id] as const,
+  part: (id: string, part: string) => ['patient', id, part] as const,
+}
+
+// --- Auth ---------------------------------------------------------------------
+
+export const useMe = () =>
+  useQuery({ queryKey: keys.me, queryFn: () => api<MeDto>('/auth/me'), retry: false, staleTime: 5 * 60_000 })
+
+export function useLogin() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: LoginInput) => api<void>('/auth/login', { body: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: keys.me }),
+  })
+}
+
+export function useLogout() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: () => api<void>('/auth/logout', { method: 'POST' }),
+    onSettled: () => qc.clear(),
+  })
+}
+
+// --- Patients -----------------------------------------------------------------
+
+export interface PatientFilters {
+  q?: string
+  caseType?: CaseTypeCode
+  status?: PatientStatusCode
+}
+
+export function usePatients(filters: PatientFilters) {
+  return useInfiniteQuery({
+    queryKey: keys.patients(filters),
+    initialPageParam: '',
+    queryFn: ({ pageParam, signal }) => {
+      const params = new URLSearchParams({ limit: '25' })
+      if (filters.q) params.set('q', filters.q)
+      if (filters.caseType) params.set('caseType', filters.caseType)
+      if (filters.status) params.set('status', filters.status)
+      if (pageParam) params.set('cursor', pageParam)
+      return api<Page<PatientListItemDto>>(`/patients?${params}`, { signal })
+    },
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+    placeholderData: keepPreviousData,
+  })
+}
+
+export const usePatient = (id: string) =>
+  useQuery({ queryKey: keys.patient(id), queryFn: () => api<PatientDto>(`/patients/${id}`) })
+
+export function useCreatePatient() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreatePatientInput) => api<PatientDto>('/patients', { body: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['patients'] }),
+  })
+}
+
+export function useUpdatePatient(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpdatePatientInput) => api<PatientDto>(`/patients/${id}`, { method: 'PATCH', body: input }),
+    onSuccess: (data) => {
+      qc.setQueryData(keys.patient(id), data)
+      void qc.invalidateQueries({ queryKey: ['patients'] })
+    },
+  })
+}
+
+// --- Patient record parts -----------------------------------------------------
+
+const part = <T>(id: string, name: string, path: string) =>
+  ({ queryKey: keys.part(id, name), queryFn: () => api<T>(`/patients/${id}${path}`) }) as const
+
+export const useTimeline = (id: string) => useQuery(part<TimelineEventDto[]>(id, 'timeline', '/timeline'))
+export const useVisits = (id: string) => useQuery(part<VisitDto[]>(id, 'visits', '/visits'))
+export const usePregnancies = (id: string) => useQuery(part<PregnancyDto[]>(id, 'pregnancies', '/pregnancies'))
+export const useMedicalHistory = (id: string) => useQuery(part<MedicalHistoryDto>(id, 'history', '/medical-history'))
+export const useObstetricHistory = (id: string) =>
+  useQuery(part<ObstetricEntryDto[]>(id, 'obstetric', '/obstetric-history'))
+export const usePrescriptions = (id: string) => useQuery(part<PrescriptionDto[]>(id, 'prescriptions', '/prescriptions'))
+export const usePayments = (id: string) => useQuery(part<PaymentsDto>(id, 'payments', '/payments'))
+export const useNotes = (id: string) => useQuery(part<NoteDto[]>(id, 'notes', '/notes'))
+export const useAttachments = (id: string) =>
+  useQuery({
+    ...part<AttachmentDto[]>(id, 'attachments', '/attachments'),
+    select: (files) => files.filter((f) => f.kind !== 'PAYMENT_PROOF'),
+  })
+
+/** A change to any part refreshes the header totals and the timeline too. */
+function usePatientMutation<TInput, TResult>(id: string, parts: string[], fn: (input: TInput) => Promise<TResult>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: keys.patient(id), exact: true }),
+        qc.invalidateQueries({ queryKey: keys.part(id, 'timeline') }),
+        ...parts.map((p) => qc.invalidateQueries({ queryKey: keys.part(id, p) })),
+      ]),
+  })
+}
+
+export const useAddVisit = (id: string) =>
+  usePatientMutation(id, ['visits'], (input: CreateVisitInput) =>
+    api<VisitDto>(`/patients/${id}/visits`, { body: input }),
+  )
+
+export const useStartPregnancy = (id: string) =>
+  usePatientMutation(id, ['pregnancies', 'visits'], (input: CreatePregnancyInput) =>
+    api<PregnancyDto>(`/patients/${id}/pregnancies`, { body: input }),
+  )
+
+export const useEndPregnancy = (id: string) =>
+  usePatientMutation(
+    id,
+    ['pregnancies'],
+    ({ pregnancyId, status }: { pregnancyId: string; status: 'DELIVERED' | 'ENDED' }) =>
+      api<PregnancyDto>(`/patients/${id}/pregnancies/${pregnancyId}/end`, { body: { status } }),
+  )
+
+export const useSaveMedicalHistory = (id: string) =>
+  usePatientMutation(id, ['history'], (input: MedicalHistoryInput) =>
+    api<MedicalHistoryDto>(`/patients/${id}/medical-history`, { method: 'PUT', body: input }),
+  )
+
+export const useAddObstetricEntry = (id: string) =>
+  usePatientMutation(id, ['obstetric'], (input: ObstetricEntryInput) =>
+    api<ObstetricEntryDto>(`/patients/${id}/obstetric-history`, { body: input }),
+  )
+
+export const useRemoveObstetricEntry = (id: string) =>
+  usePatientMutation(id, ['obstetric'], (entryId: string) =>
+    api<void>(`/patients/${id}/obstetric-history/${entryId}`, { method: 'DELETE' }),
+  )
+
+export const useCreatePrescription = (id: string) =>
+  usePatientMutation(id, ['prescriptions'], (input: CreatePrescriptionInput) =>
+    api<PrescriptionDto>(`/patients/${id}/prescriptions`, { body: input }),
+  )
+
+export const useVoidPrescription = (id: string) =>
+  usePatientMutation(id, ['prescriptions'], ({ prescriptionId, reason }: { prescriptionId: string; reason: string }) =>
+    api<PrescriptionDto>(`/patients/${id}/prescriptions/${prescriptionId}/void`, { body: { reason } }),
+  )
+
+export const useCreatePayment = (id: string) =>
+  usePatientMutation(id, ['payments'], (input: CreatePaymentInput) =>
+    api<PaymentDto>(`/patients/${id}/payments`, { body: input }),
+  )
+
+export const useVoidPayment = (id: string) =>
+  usePatientMutation(id, ['payments'], ({ paymentId, reason }: { paymentId: string; reason: string }) =>
+    api<PaymentDto>(`/patients/${id}/payments/${paymentId}/void`, { body: { reason } }),
+  )
+
+export interface UploadInput {
+  file: File
+  kind: AttachmentKindCode
+  title: string
+  takenAt?: string
+  paymentId?: string
+}
+
+export const useUploadAttachment = (id: string) =>
+  usePatientMutation(id, ['attachments', 'payments'], (input: UploadInput) => {
+    const form = new FormData()
+    // Fields first, file last: the API reads the metadata before streaming the file.
+    form.set('kind', input.kind)
+    form.set('title', input.title)
+    if (input.takenAt) form.set('takenAt', input.takenAt)
+    if (input.paymentId) form.set('paymentId', input.paymentId)
+    form.set('file', input.file)
+    return api<AttachmentDto>(`/patients/${id}/attachments`, { body: form })
+  })
+
+export const useDeleteAttachment = (id: string) =>
+  usePatientMutation(id, ['attachments'], (attachmentId: string) =>
+    api<void>(`/patients/${id}/attachments/${attachmentId}`, { method: 'DELETE' }),
+  )
+
+export const useAddNote = (id: string) =>
+  usePatientMutation(id, ['notes'], (input: CreateNoteInput) => api<NoteDto>(`/patients/${id}/notes`, { body: input }))
