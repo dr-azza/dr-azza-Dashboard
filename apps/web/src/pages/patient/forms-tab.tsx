@@ -135,11 +135,15 @@ function SendFormPanel({ patientId, onClose }: { patientId: string; onClose: () 
           <Button
             color="brand"
             disabled={!formId || create.isPending}
-            onClick={async () => {
-              const link = await create.mutateAsync(formId)
-              setCreated((list) => [{ id: link.id, title: link.form.title, url: formLinkUrl(link.token) }, ...list])
-              setFormId('')
-            }}
+            onClick={() =>
+              // Errors (e.g. the form was closed meanwhile) show below via create.error.
+              create.mutate(formId, {
+                onSuccess: (link) => {
+                  setCreated((list) => [{ id: link.id, title: link.form.title, url: formLinkUrl(link.token) }, ...list])
+                  setFormId('')
+                },
+              })
+            }
           >
             {t('forms.patientTab.create')}
           </Button>

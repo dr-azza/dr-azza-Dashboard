@@ -337,20 +337,20 @@ describe.skipIf(!url)('forms (integration)', () => {
     expect((await call('GET', '/public/forms/not-a-real-token-at-all', undefined, false)).statusCode).toBe(404)
   })
 
-  it('limits submissions per link, without one link using up another link’s allowance', async () => {
-    const make = async () => (await call('POST', '/forms', { title: 'Flood', language: 'en', fields: [] })).json()
-    const [a, b] = [await make(), await make()]
-    const send = (token: string) =>
-      call(
-        'POST',
-        `/public/forms/${token}/responses`,
-        { versionId: '00000000-0000-7000-8000-000000000000', answers: {} },
-        false,
-      )
-    const codes = []
-    for (let i = 0; i < 11; i++) codes.push((await send(a.publicToken)).statusCode)
-    expect(codes.slice(0, 10).every((c) => c !== 429)).toBe(true)
-    expect(codes[10]).toBe(429)
-    expect((await send(b.publicToken)).statusCode).not.toBe(429)
+  it('limits public submissions per address, whatever token is used', async () => {
+    // A separate address, so this flood doesn't use up the rest of the suite's allowance.
+    const flood = (token: string) =>
+      app.inject({
+        method: 'POST',
+        url: `/api/v1/public/forms/${token}/responses`,
+        remoteAddress: '10.9.9.9',
+        payload: { versionId: '00000000-0000-7000-8000-000000000000', answers: {} },
+      })
+    const codes: number[] = []
+    // Made-up tokens each time: they must not each get a fresh allowance.
+    for (let i = 0; i < 31; i++) codes.push((await flood(`madeUpToken${String(i).padStart(10, '0')}`)).statusCode)
+    expect(codes.slice(0, 30).every((c) => c !== 429)).toBe(true)
+    expect(codes[30]).toBe(429)
+    expect((await flood(token)).statusCode).toBe(429)
   })
 })

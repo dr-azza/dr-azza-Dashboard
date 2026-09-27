@@ -8,7 +8,6 @@ import {
 } from '@azza/shared'
 import { Body, Controller, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common'
 import { RouteConfig } from '@nestjs/platform-fastify'
-import type { FastifyRequest } from 'fastify'
 import { ApiTags } from '@nestjs/swagger'
 import { createZodDto } from 'nestjs-zod'
 import { z } from 'zod'
@@ -150,15 +149,10 @@ export class PublicFormsController {
   }
 
   @Post(':token/responses')
-  // Per link and address: people sharing one network (a family, a clinic's Wi-Fi) don't block
-  // each other, while one link still can't be flooded.
-  @RouteConfig({
-    rateLimit: {
-      max: 10,
-      timeWindow: '1 minute',
-      keyGenerator: (req: FastifyRequest<{ Params: { token?: string } }>) => `${req.ip}:${req.params.token ?? ''}`,
-    },
-  })
+  // Per address, across every link: a key the caller can't vary (a made-up token per request
+  // would otherwise mean a fresh allowance each time). 30 a minute is far more than one
+  // waiting room on the clinic's Wi-Fi sends, and still stops a flood.
+  @RouteConfig({ rateLimit: { max: 30, timeWindow: '1 minute' } })
   submit(@Param('token') token: string, @Body() body: SubmitFormDto) {
     return this.publicForms.submit(token, body)
   }
