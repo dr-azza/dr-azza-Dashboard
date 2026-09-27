@@ -94,7 +94,7 @@ bilingual _Test environment_ strip; use test data only.
 
 - **Web app:** the Vite build (`apps/web/dist`) served from Vercel's CDN, with hashed assets cached
   for a year, `index.html` never, and client-routing fallback (missing files stay 404s).
-- **API:** one Vercel Function, [`api/[...path].js`](api/[...path].js), which receives every
+- **API:** one Vercel Function, [`api/index.js`](api/index.js), which receives every
   `/api/*` request and hands it to the same NestJS/Fastify app as the server build
   (`apps/api/src/serverless.ts`). Same origin as the web app, so the session cookie is first-party.
 - **Build** (`scripts/vercel-build.sh`): builds web and API, then applies migrations and seeds the

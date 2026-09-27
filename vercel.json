@@ -5,12 +5,16 @@
   "buildCommand": "bash scripts/vercel-build.sh",
   "outputDirectory": "apps/web/dist",
   "functions": {
-    "api/[...path].js": {
+    "api/index.js": {
       "maxDuration": 30,
       "includeFiles": "apps/api/dist/**"
     }
   },
   "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api"
+    },
     {
       "source": "/((?!api/|assets/)(?!.*\\.[a-zA-Z0-9]+$).*)",
       "destination": "/index.html"
