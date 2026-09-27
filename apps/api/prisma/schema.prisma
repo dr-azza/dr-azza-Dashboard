@@ -31,7 +31,8 @@ model Clinic {
 
   staff         StaffMember[]
   patients      Patient[]
-  formTemplates FormTemplate[]
+  forms         Form[]
+  formResponses FormResponse[]
   reminders     Reminder[]
   auditLogs     AuditLog[]
   caseTypes     CaseType[]
@@ -64,7 +65,12 @@ model StaffMember {
 
   clinic               Clinic         @relation(fields: [clinicId], references: [id], onDelete: Restrict)
   visits               Visit[]
-  reviewedAnswers      FormResponse[]
+  reviewedAnswers      FormResponse[] @relation("FormResponseReviewer")
+  linkedAnswers        FormResponse[] @relation("FormResponseLinker")
+  formsCreated         Form[]         @relation("FormCreator")
+  formsUpdated         Form[]         @relation("FormUpdater")
+  formVersions         FormVersion[]
+  formLinks            FormLink[]
   sessions             Session[]
   prescriptions        Prescription[]
   payments             Payment[]
@@ -140,7 +146,8 @@ model Patient {
   caseType         CaseType                @relation(fields: [caseTypeId], references: [id], onDelete: Restrict)
   pregnancies      Pregnancy[]
   visits           Visit[]
-  formRequests     FormRequest[]
+  formLinks        FormLink[]
+  formResponses    FormResponse[]
   reminders        Reminder[]
   medicalHistory   MedicalHistory?
   obstetricHistory ObstetricHistoryEntry[]
@@ -213,29 +220,8 @@ model Visit {
 }
 
 // ---------------------------------------------------------------------------
-// Forms sent to patients by link
+// Clinic-built forms, filled by patients through a link
 // ---------------------------------------------------------------------------
-
-model FormTemplate {
-  id        String   @id @default(uuid(7)) @db.Uuid
-  clinicId  String   @map("clinic_id") @db.Uuid
-  /// Stable key used by code, e.g. "weekly-checkin".
-  key       String
-  /// Bilingual name: { en, ar }.
-  name      Json
-  /// Question definitions (versioned JSON), validated by the API.
-  schema    Json
-  version   Int      @default(1)
-  isActive  Boolean  @default(true) @map("is_active")
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
-  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
-
-  clinic   Clinic        @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  requests FormRequest[]
-
-  @@unique([clinicId, key, version])
-  @@map("form_templates")
-}
 
 enum Channel {
   WHATSAPP
@@ -245,42 +231,129 @@ enum Channel {
   @@map("channel")
 }
 
-/// One private link sent to one patient for one form.
-model FormRequest {
-  id         String    @id @default(uuid(7)) @db.Uuid
-  templateId String    @map("template_id") @db.Uuid
-  patientId  String    @map("patient_id") @db.Uuid
-  /// SHA-256 of the link token. The raw token only ever exists in the link itself.
-  tokenHash  String    @unique @map("token_hash")
-  channel    Channel
-  expiresAt  DateTime  @map("expires_at") @db.Timestamptz(3)
-  sentAt     DateTime? @map("sent_at") @db.Timestamptz(3)
-  openedAt   DateTime? @map("opened_at") @db.Timestamptz(3)
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+enum FormLanguage {
+  ar
+  en
 
-  template FormTemplate  @relation(fields: [templateId], references: [id], onDelete: Restrict)
-  patient  Patient       @relation(fields: [patientId], references: [id], onDelete: Restrict)
-  response FormResponse?
+  @@map("form_language")
+}
+
+/// How a response was tied to a patient.
+enum FormResponseMatch {
+  /// Submitted through the patient's personal link.
+  LINK
+  /// The phone typed on the shared link matched exactly one patient (unverified until reviewed).
+  PHONE
+  /// Linked by staff.
+  STAFF
+
+  @@map("form_response_match")
+}
+
+/// A form built by the clinic. `fields` is the current question list; every change to what
+/// patients see is also kept as a FormVersion, so each response stays tied to the exact questions it answered.
+model Form {
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  clinicId           String       @map("clinic_id") @db.Uuid
+  title              String
+  description        String?
+  language           FormLanguage @default(ar)
+  /// Validated with FormFieldsSchema (@azza/shared) before it is stored.
+  fields             Json
+  version            Int          @default(1)
+  /// Answerable questions (sections excluded), kept with `fields` so lists never load the JSON.
+  questionCount      Int          @default(0) @map("question_count")
+  /// Token of the shareable link (/f/:token). Public by design; rotating it retires old links.
+  publicToken        String       @unique @map("public_token")
+  acceptingResponses Boolean      @default(true) @map("accepting_responses")
+  archivedAt         DateTime?    @map("archived_at") @db.Timestamptz(3)
+  createdById        String?      @map("created_by_id") @db.Uuid
+  updatedById        String?      @map("updated_by_id") @db.Uuid
+  createdAt          DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt          DateTime     @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic    Clinic         @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  createdBy StaffMember?   @relation("FormCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy StaffMember?   @relation("FormUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  versions  FormVersion[]
+  links     FormLink[]
+  responses FormResponse[]
+
+  @@index([clinicId, updatedAt(sort: Desc)])
+  @@map("forms")
+}
+
+/// Immutable snapshot of a form as patients saw it.
+model FormVersion {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  formId      String       @map("form_id") @db.Uuid
+  version     Int
+  title       String
+  description String?
+  language    FormLanguage
+  fields      Json
+  createdById String?      @map("created_by_id") @db.Uuid
+  createdAt   DateTime     @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  form      Form           @relation(fields: [formId], references: [id], onDelete: Restrict)
+  createdBy StaffMember?   @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  responses FormResponse[]
+
+  @@unique([formId, version])
+  @@map("form_versions")
+}
+
+/// A personal, single-use link to one form for one patient.
+model FormLink {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  formId      String    @map("form_id") @db.Uuid
+  patientId   String    @map("patient_id") @db.Uuid
+  /// SHA-256 of the link token. The raw token only ever exists in the link itself.
+  tokenHash   String    @unique @map("token_hash")
+  expiresAt   DateTime  @map("expires_at") @db.Timestamptz(3)
+  openedAt    DateTime? @map("opened_at") @db.Timestamptz(3)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(3)
+  createdById String?   @map("created_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  form      Form          @relation(fields: [formId], references: [id], onDelete: Restrict)
+  patient   Patient       @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  createdBy StaffMember?  @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  response  FormResponse?
 
   @@index([patientId, createdAt(sort: Desc)])
-  @@map("form_requests")
+  @@map("form_links")
 }
 
 model FormResponse {
-  id           String    @id @default(uuid(7)) @db.Uuid
-  requestId    String    @unique @map("request_id") @db.Uuid
-  answers      Json
-  /// Set by the API using the shared clinical rules (@azza/shared), never by the client.
-  isFlagged    Boolean   @default(false) @map("is_flagged")
-  flagReasons  String[]  @map("flag_reasons")
-  submittedAt  DateTime  @default(now()) @map("submitted_at") @db.Timestamptz(3)
-  reviewedAt   DateTime? @map("reviewed_at") @db.Timestamptz(3)
-  reviewedById String?   @map("reviewed_by_id") @db.Uuid
+  id              String             @id @default(uuid(7)) @db.Uuid
+  clinicId        String             @map("clinic_id") @db.Uuid
+  formId          String             @map("form_id") @db.Uuid
+  versionId       String             @map("version_id") @db.Uuid
+  linkId          String?            @unique @map("link_id") @db.Uuid
+  patientId       String?            @map("patient_id") @db.Uuid
+  matchedBy       FormResponseMatch? @map("matched_by")
+  /// Typed by the respondent on the shared link (personal links know the patient already).
+  respondentName  String?            @map("respondent_name")
+  respondentPhone String?            @map("respondent_phone")
+  /// { [questionId]: answer }, validated and cleaned with validateAnswers (@azza/shared).
+  answers         Json
+  submittedAt     DateTime           @default(now()) @map("submitted_at") @db.Timestamptz(3)
+  reviewedAt      DateTime?          @map("reviewed_at") @db.Timestamptz(3)
+  reviewedById    String?            @map("reviewed_by_id") @db.Uuid
+  linkedById      String?            @map("linked_by_id") @db.Uuid
 
-  request    FormRequest  @relation(fields: [requestId], references: [id], onDelete: Restrict)
-  reviewedBy StaffMember? @relation(fields: [reviewedById], references: [id], onDelete: SetNull)
+  clinic     Clinic       @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  form       Form         @relation(fields: [formId], references: [id], onDelete: Restrict)
+  version    FormVersion  @relation(fields: [versionId], references: [id], onDelete: Restrict)
+  link       FormLink?    @relation(fields: [linkId], references: [id], onDelete: Restrict)
+  patient    Patient?     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  reviewedBy StaffMember? @relation("FormResponseReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  linkedBy   StaffMember? @relation("FormResponseLinker", fields: [linkedById], references: [id], onDelete: SetNull)
 
-  @@index([isFlagged, reviewedAt])
+  @@index([formId, submittedAt(sort: Desc)])
+  @@index([patientId, submittedAt(sort: Desc)])
+  @@index([clinicId, reviewedAt])
   @@map("form_responses")
 }
 

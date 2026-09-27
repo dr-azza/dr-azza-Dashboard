@@ -7,6 +7,8 @@ export class ApiError extends Error {
     readonly status: number,
     message: string,
     readonly fieldErrors: { path: (string | number)[]; message: string }[] = [],
+    /** The full error body, for endpoints that return extra detail (e.g. per-question errors). */
+    readonly body: unknown = null,
   ) {
     super(message)
   }
@@ -40,7 +42,7 @@ export async function api<T>(
   const data = res.headers.get('content-type')?.includes('application/json') ? await res.json() : null
   if (!res.ok) {
     const err = (data ?? {}) as Partial<ApiErrorDto>
-    throw new ApiError(res.status, err.message ?? res.statusText, err.errors ?? [])
+    throw new ApiError(res.status, err.message ?? res.statusText, err.errors ?? [], data)
   }
   return data as T
 }

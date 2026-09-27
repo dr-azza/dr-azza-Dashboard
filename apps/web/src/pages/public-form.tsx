@@ -1,208 +1,182 @@
 import { ThemeToggleButton } from '@/components/app/theme-switcher'
 import { AzzahAppIcon, AzzahLockup } from '@/components/brand/logo'
 import { Button } from '@/components/catalyst/button'
-import { Checkbox, CheckboxField, CheckboxGroup } from '@/components/catalyst/checkbox'
-import { Field, Fieldset, Label, Legend } from '@/components/catalyst/fieldset'
-import { Input } from '@/components/catalyst/input'
-import { Textarea } from '@/components/catalyst/textarea'
-import { findPatient } from '@/data/mock'
-import { useLang } from '@/i18n'
-import { CHECKIN_SYMPTOMS, isUrgentCheckin, pregnancyInfo, type CheckinSymptom } from '@azza/shared'
-import { CheckCircleIcon, ExclamationTriangleIcon, PhoneIcon } from '@heroicons/react/20/solid'
-import clsx from 'clsx'
-import { useMemo, useState } from 'react'
-
-const FEELINGS = ['fine', 'tired', 'unwell'] as const
-
-// Demo placeholder until the clinic's real number is configured.
-const CLINIC_PHONE = 'tel:+200000000000'
+import { FormRenderer } from '@/components/forms/form-renderer'
+import { api, ApiError } from '@/lib/api'
+import { dirFor } from '@azza/i18n'
+import type { FormLanguage, PublicFormDto } from '@azza/shared'
+import {
+  CheckCircleIcon,
+  ClockIcon,
+  ExclamationTriangleIcon,
+  LockClosedIcon,
+  NoSymbolIcon,
+} from '@heroicons/react/24/outline'
+import { useMutation, useQuery } from '@tanstack/react-query'
+import i18n from 'i18next'
+import { useEffect, useMemo } from 'react'
+import { useParams } from 'react-router'
 
 /**
- * The page a patient opens from the link the clinic sends. It needs no login;
- * in production the token in the URL resolves to one patient and one form.
+ * The page a patient opens from a form link. No login: the token in the URL is either the form's
+ * shared link or her personal one. Everything is shown in the form's own language and direction,
+ * whatever language the device or a staff member last used.
  */
 export function PublicFormPage() {
-  const { t, l, toggle } = useLang()
-  const today = useMemo(() => new Date(), [])
-  const patient = findPatient('p-1187')!
-  const info = pregnancyInfo(patient, today)
+  const { token = '' } = useParams()
+  const form = useQuery({
+    queryKey: ['public-form', token],
+    queryFn: () => api<PublicFormDto>(`/public/forms/${encodeURIComponent(token)}`),
+    retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 2,
+    staleTime: Infinity,
+  })
+  const submit = useMutation({
+    mutationFn: (body: object) => api<{ ok: true }>(`/public/forms/${encodeURIComponent(token)}/responses`, { body }),
+    onSuccess: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+  })
 
-  const [feeling, setFeeling] = useState<(typeof FEELINGS)[number] | null>(null)
-  const [symptoms, setSymptoms] = useState<CheckinSymptom[]>([])
-  const [systolic, setSystolic] = useState('')
-  const [diastolic, setDiastolic] = useState('')
-  const [question, setQuestion] = useState('')
-  const [submitted, setSubmitted] = useState(false)
+  // Before the form loads (or if it can't), speak the language this device last used.
+  const language: FormLanguage = form.data?.language ?? (i18n.language === 'ar' ? 'ar' : 'en')
+  const t = useMemo(() => i18n.getFixedT(language), [language])
+  useDocumentLanguage(language, form.data?.title)
 
-  const toggleSymptom = (s: CheckinSymptom, on: boolean) => {
-    if (s === 'none') return setSymptoms(on ? ['none'] : [])
-    setSymptoms((prev) => (on ? [...prev.filter((x) => x !== 'none'), s] : prev.filter((x) => x !== s)))
+  let body: React.ReactNode
+  if (form.isPending) {
+    body = <div className="h-72 animate-pulse rounded-2xl bg-white/70 dark:bg-white/5" />
+  } else if (form.isError) {
+    const missing = form.error instanceof ApiError && form.error.status === 404
+    body = missing ? (
+      <Notice icon={NoSymbolIcon} title={t('publicForm.notFoundTitle')} body={t('publicForm.notFoundBody')} />
+    ) : (
+      <Notice icon={ExclamationTriangleIcon} title={t('publicForm.loadError')}>
+        <Button color="brand" className="mt-6" onClick={() => form.refetch()}>
+          {t('publicForm.retry')}
+        </Button>
+      </Notice>
+    )
+  } else if (submit.isSuccess) {
+    body = (
+      <Notice
+        icon={CheckCircleIcon}
+        tone="success"
+        title={t('publicForm.thanksTitle')}
+        body={t('publicForm.thanksBody')}
+      />
+    )
+  } else if (form.data.state !== 'open') {
+    const s = form.data.state
+    body = (
+      <Notice
+        icon={s === 'submitted' ? CheckCircleIcon : s === 'expired' ? ClockIcon : LockClosedIcon}
+        tone={s === 'submitted' ? 'success' : 'neutral'}
+        title={t(`publicForm.${s}Title`)}
+        body={t(`publicForm.${s}Body`)}
+      />
+    )
+  } else {
+    const f = form.data
+    body = (
+      <>
+        <div className="mb-6 overflow-hidden rounded-2xl bg-white shadow-xs ring-1 ring-zinc-950/8 dark:bg-zinc-900 dark:ring-white/10">
+          <div className="h-2 bg-linear-to-r from-brand-600 via-brand-500 to-zinc-900 rtl:bg-linear-to-l" />
+          <div className="p-6 sm:p-8">
+            {f.greetingName && (
+              <p className="text-sm/6 font-semibold text-brand-700 dark:text-brand-300">
+                {t('publicForm.hello', { name: f.greetingName })}
+              </p>
+            )}
+            <h1 className="mt-1 text-2xl/8 font-bold text-zinc-950 sm:text-3xl/9 dark:text-white">{f.title}</h1>
+            {f.description && (
+              <p className="mt-3 text-base/7 whitespace-pre-line text-zinc-600 dark:text-zinc-300">{f.description}</p>
+            )}
+            <p className="mt-4 text-xs/5 text-zinc-500 dark:text-zinc-400">
+              <span className="text-red-600">*</span> {t('publicForm.required')}
+            </p>
+          </div>
+        </div>
+        <FormRenderer
+          fields={f.fields}
+          language={f.language}
+          askIdentity={f.mode === 'shared'}
+          onSubmit={async (answers, respondent) => {
+            await submit.mutateAsync({ versionId: f.versionId, answers, respondent })
+          }}
+        />
+      </>
+    )
   }
 
-  const urgent = isUrgentCheckin({ symptoms, systolic: Number(systolic) || null, diastolic: Number(diastolic) || null })
-  const answered = feeling !== null || symptoms.length > 0 || systolic !== '' || question !== ''
-  const firstName = l(patient.name).split(' ')[0]
-
   return (
-    <div className="min-h-svh bg-seashell dark:bg-zinc-950">
+    <div className="min-h-svh bg-seashell dark:bg-zinc-950" lang={language} dir={dirFor(language)}>
       <header className="sticky top-0 z-10 border-b border-zinc-950/5 bg-white/90 backdrop-blur dark:border-white/10 dark:bg-zinc-900/90">
-        <div className="mx-auto flex max-w-lg items-center gap-3 px-4 py-3">
-          <AzzahAppIcon className="size-8" />
-          <span className="flex-1 text-base/6 font-semibold text-zinc-950 dark:text-white">{t('app.clinicName')}</span>
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3">
+          <div className="flex min-w-0 items-center gap-3">
+            <AzzahAppIcon className="size-9 shrink-0" />
+            <div className="min-w-0">
+              <p className="truncate text-sm/5 font-semibold text-zinc-950 dark:text-white">
+                {form.data?.clinicName ?? 'AZZAH'}
+              </p>
+              <p className="text-xs/5 text-zinc-500 dark:text-zinc-400">{t('publicForm.poweredBy')}</p>
+            </div>
+          </div>
           <ThemeToggleButton />
-          <Button plain onClick={toggle}>
-            {t('app.switchLanguage')}
-          </Button>
         </div>
       </header>
+      <main className="mx-auto max-w-2xl px-4 py-6 sm:py-10">{body}</main>
+      <footer className="mx-auto max-w-2xl px-4 pb-10 text-center">
+        <p className="flex items-center justify-center gap-1.5 text-xs/5 text-zinc-500 dark:text-zinc-400">
+          <LockClosedIcon className="size-3.5" />
+          {t('publicForm.privacy')}
+        </p>
+        <AzzahLockup className="mx-auto mt-6 h-10 text-zinc-400 dark:text-zinc-600" />
+      </footer>
+    </div>
+  )
+}
 
-      <main className="mx-auto max-w-lg px-4 pt-6 pb-16">
-        {submitted ? (
-          <div className="rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-            <AzzahLockup className="mx-auto h-24 text-zinc-900 dark:text-white" />
-            <CheckCircleIcon className="mx-auto mt-6 size-10 fill-teal-600" />
-            <h1 className="mt-4 text-xl/8 font-semibold text-zinc-950 dark:text-white">
-              {t('publicForm.thanksTitle')}
-            </h1>
-            <p className="mt-2 text-base/7 text-zinc-600 dark:text-zinc-400">{t('publicForm.thanksBody')}</p>
-            {urgent && (
-              <div className="mt-6 rounded-xl bg-red-50 p-4 text-start text-sm/6 font-medium text-red-900 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900">
-                {t('publicForm.thanksUrgent')}
-                <Button color="red" href={CLINIC_PHONE} className="mt-3 w-full">
-                  <PhoneIcon />
-                  {t('publicForm.callClinic')}
-                </Button>
-              </div>
-            )}
-          </div>
-        ) : (
-          <form
-            className="space-y-4"
-            onSubmit={(e) => {
-              e.preventDefault()
-              setSubmitted(true)
-            }}
-          >
-            <div className="px-1">
-              <p className="text-sm/6 text-zinc-500 dark:text-zinc-400">{t('publicForm.hello', { name: firstName })}</p>
-              <h1 className="mt-0.5 text-2xl/8 font-semibold text-zinc-950 dark:text-white">{t('publicForm.title')}</h1>
-              {info && (
-                <p className="mt-1 text-sm/6 text-zinc-500 dark:text-zinc-400">
-                  {t('publicForm.meta', { w: info.weeks, d: info.days })}
-                </p>
-              )}
-            </div>
+/** Sets the page language, direction and title while the form is open, and restores them after. */
+function useDocumentLanguage(language: FormLanguage, title?: string) {
+  useEffect(() => {
+    const html = document.documentElement
+    const previous = { lang: html.lang, dir: html.dir, title: document.title }
+    html.lang = language
+    html.dir = dirFor(language)
+    if (title) document.title = title
+    return () => {
+      html.lang = previous.lang
+      html.dir = previous.dir
+      document.title = previous.title
+    }
+  }, [language, title])
+}
 
-            <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-              <Fieldset>
-                <Legend className="text-base/7!">{t('publicForm.feel')}</Legend>
-                <div className="mt-4 grid grid-cols-3 gap-2">
-                  {FEELINGS.map((f) => (
-                    <button
-                      key={f}
-                      type="button"
-                      aria-pressed={feeling === f}
-                      onClick={() => setFeeling(f)}
-                      className={clsx(
-                        'min-h-12 rounded-xl px-2 text-sm/5 font-medium ring-1 transition',
-                        feeling === f
-                          ? 'bg-brand-50 text-brand-800 ring-2 ring-brand-600 dark:bg-brand-950/50 dark:text-brand-200'
-                          : 'bg-white text-zinc-700 ring-zinc-950/10 hover:bg-zinc-50 dark:bg-zinc-800 dark:text-zinc-300 dark:ring-white/10',
-                      )}
-                    >
-                      {t(`publicForm.${f}`)}
-                    </button>
-                  ))}
-                </div>
-              </Fieldset>
-            </section>
-
-            <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-              <Fieldset>
-                <Legend className="text-base/7!">{t('publicForm.symptoms')}</Legend>
-                <CheckboxGroup className="mt-4">
-                  {CHECKIN_SYMPTOMS.map((s) => (
-                    <CheckboxField key={s}>
-                      <Checkbox color="brand" checked={symptoms.includes(s)} onChange={(on) => toggleSymptom(s, on)} />
-                      <Label className="text-base/6!">{t(`publicForm.${s}`)}</Label>
-                    </CheckboxField>
-                  ))}
-                </CheckboxGroup>
-              </Fieldset>
-            </section>
-
-            <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-              <Fieldset>
-                <Legend className="text-base/7!">{t('publicForm.bp')}</Legend>
-                <div className="mt-4 grid grid-cols-2 gap-3" dir="ltr">
-                  <Field>
-                    <Label>{t('publicForm.systolic')}</Label>
-                    <Input
-                      inputMode="numeric"
-                      type="number"
-                      min={60}
-                      max={250}
-                      value={systolic}
-                      onChange={(e) => setSystolic(e.target.value)}
-                      placeholder="120"
-                    />
-                  </Field>
-                  <Field>
-                    <Label>{t('publicForm.diastolic')}</Label>
-                    <Input
-                      inputMode="numeric"
-                      type="number"
-                      min={30}
-                      max={160}
-                      value={diastolic}
-                      onChange={(e) => setDiastolic(e.target.value)}
-                      placeholder="80"
-                    />
-                  </Field>
-                </div>
-              </Fieldset>
-            </section>
-
-            {urgent && (
-              <div
-                role="alert"
-                className="flex gap-3 rounded-2xl bg-red-50 p-5 text-red-900 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900"
-              >
-                <ExclamationTriangleIcon className="size-6 shrink-0 fill-red-600" />
-                <div className="space-y-3">
-                  <p className="text-sm/6 font-medium">{t('publicForm.warning')}</p>
-                  <Button color="red" href={CLINIC_PHONE} className="w-full">
-                    <PhoneIcon />
-                    {t('publicForm.callClinic')}
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            <section className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 dark:bg-zinc-900 dark:ring-white/10">
-              <Field>
-                <Label className="text-base/7! font-semibold!">{t('publicForm.question')}</Label>
-                <Textarea
-                  rows={3}
-                  value={question}
-                  onChange={(e) => setQuestion(e.target.value)}
-                  placeholder={t('publicForm.questionPlaceholder')}
-                  className="mt-3"
-                />
-              </Field>
-            </section>
-
-            <Button type="submit" color="brand" disabled={!answered} className="w-full py-3! text-base/6!">
-              {t('publicForm.submit')}
-            </Button>
-            <p className="px-2 text-center text-xs/5 text-zinc-500 dark:text-zinc-400">
-              {t('publicForm.privacy')}
-              <br />
-              {t('publicForm.emergency')}
-            </p>
-          </form>
-        )}
-      </main>
+function Notice({
+  icon: Icon,
+  title,
+  body,
+  tone = 'neutral',
+  children,
+}: {
+  icon: typeof CheckCircleIcon
+  title: string
+  body?: string
+  tone?: 'neutral' | 'success'
+  children?: React.ReactNode
+}) {
+  return (
+    <div className="rounded-2xl bg-white px-6 py-12 text-center shadow-xs ring-1 ring-zinc-950/8 dark:bg-zinc-900 dark:ring-white/10">
+      <span
+        className={
+          tone === 'success'
+            ? 'mx-auto flex size-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 dark:bg-emerald-950/50 dark:text-emerald-400'
+            : 'mx-auto flex size-14 items-center justify-center rounded-full bg-brand-50 text-brand-700 dark:bg-brand-950/50 dark:text-brand-300'
+        }
+      >
+        <Icon className="size-7" />
+      </span>
+      <h1 className="mt-5 text-xl/8 font-bold text-zinc-950 dark:text-white">{title}</h1>
+      {body && <p className="mx-auto mt-2 max-w-sm text-base/7 text-zinc-600 dark:text-zinc-400">{body}</p>}
+      {children}
     </div>
   )
 }

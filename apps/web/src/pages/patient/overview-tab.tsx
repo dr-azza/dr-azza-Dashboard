@@ -12,6 +12,7 @@ import {
   BanknotesIcon,
   BeakerIcon,
   BookOpenIcon,
+  ClipboardDocumentListIcon,
   ChatBubbleLeftEllipsisIcon,
   ClipboardDocumentCheckIcon,
   DocumentIcon,
@@ -28,6 +29,7 @@ const ICONS: Record<TimelineEventType, typeof HeartIcon> = {
   note: ChatBubbleLeftEllipsisIcon,
   pregnancy: HeartIcon,
   history: BookOpenIcon,
+  form: ClipboardDocumentListIcon,
 }
 
 /** Title in the viewer's language, built from the event's type and codes (the API sends no prose). */
@@ -44,6 +46,8 @@ function useEventTitle() {
         return `${t('record.overview.event.payment')} ${e.amount ? fmt.money(e.amount, e.currency) : ''} · ${t(`record.payments.methods.${e.code}`)}`
       case 'file':
         return `${e.label ?? t('record.overview.event.file')} · ${t(`record.files.kinds.${e.code}`)}`
+      case 'form':
+        return `${t('record.overview.event.form')} · ${e.label ?? ''}`
       case 'history':
         return e.label ? `${t('record.overview.event.history')} · ${e.label}` : t('record.overview.event.history')
       default:

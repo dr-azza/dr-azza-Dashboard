@@ -37,14 +37,25 @@ export class AuditInterceptor implements NestInterceptor {
         const resultId = result && typeof result === 'object' && 'id' in result ? String(result.id) : undefined
         const entityId = params.entryId ?? params.itemId ?? resultId ?? params.patientId ?? null
         // Every patient route is under /patients/:patientId; creating a patient links to the new one.
-        const patientId = params.patientId ?? (meta.entity === 'patient' && resultId) ?? null
+        const resultPatientId =
+          result &&
+          typeof result === 'object' &&
+          'patient' in result &&
+          result.patient &&
+          typeof result.patient === 'object' &&
+          'id' in result.patient
+            ? String(result.patient.id)
+            : undefined
+        // A record that belongs to a patient (e.g. a form response) also lands in her activity log.
+        const patientId =
+          params.patientId || (meta.entity === 'patient' ? resultId : undefined) || resultPatientId || null
         await this.audit.log({
           clinicId: request.staff?.clinicId,
           actorId: request.staff?.id,
           action: meta.action,
           entity: meta.entity,
           entityId,
-          patientId: patientId || null,
+          patientId,
           ip: request.ip,
         })
         return result

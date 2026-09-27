@@ -9,14 +9,15 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { cleanupOpenApiDoc } from 'nestjs-zod'
 import { MAX_UPLOAD_BYTES } from '@azza/shared'
 import { AppModule } from './app.module'
-import { ENV, type Env } from './config/env'
+import { ENV, type Env, loadEnv } from './config/env'
 
 /** Builds the configured application. Used by main.ts and by the tests. */
 export async function createApp() {
+  const { TRUST_PROXY_HOPS } = loadEnv()
   const app = await NestFactory.create<NestFastifyApplication>(
     AppModule,
     new FastifyAdapter({
-      trustProxy: true,
+      trustProxy: TRUST_PROXY_HOPS || false,
       // Medical app: never log bodies, and keep request logs to method, path and status.
       logger: { level: process.env.NODE_ENV === 'test' ? 'error' : 'info' },
       bodyLimit: 1024 * 1024,

@@ -18,6 +18,7 @@ import { useParams, useSearchParams } from 'react-router'
 import { ActivityTab } from './activity-tab'
 import { AppointmentsTab } from './appointments-tab'
 import { FilesTab } from './files-tab'
+import { FormsTab } from './forms-tab'
 import { FollowUpTab } from './follow-up-tab'
 import { HistoryTab } from './history-tab'
 import { OverviewTab } from './overview-tab'
@@ -29,6 +30,7 @@ const ALL_TABS = [
   'history',
   'followUp',
   'appointments',
+  'forms',
   'prescriptions',
   'payments',
   'files',
@@ -78,6 +80,8 @@ export function PatientPage() {
         return <FollowUpTab patientId={id} />
       case 'appointments':
         return <AppointmentsTab patientId={id} />
+      case 'forms':
+        return <FormsTab patientId={id} />
       case 'prescriptions':
         return <PrescriptionsTab patient={p} />
       case 'payments':
