@@ -9,6 +9,11 @@ export default defineConfig({
   },
   datasource: {
     // `prisma generate` needs no connection, so a placeholder lets CI generate the client without a database.
-    url: process.env.DATABASE_URL ?? 'postgresql://placeholder@localhost:5432/placeholder',
+    // Migrations need a direct (non-pooled) connection; serverless hosts run the app through the
+    // pooled one, so they give the direct URL separately.
+    url:
+      process.env.DIRECT_DATABASE_URL ??
+      process.env.DATABASE_URL ??
+      'postgresql://placeholder@localhost:5432/placeholder',
   },
 })

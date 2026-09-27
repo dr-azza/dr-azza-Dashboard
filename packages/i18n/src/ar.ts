@@ -883,7 +883,7 @@ export const ar: Messages = {
       title: 'العنوان',
       takenAt: 'تاريخ التحليل أو السونار',
       file: 'الملف',
-      allowed: 'JPEG أو PNG أو WebP أو HEIC أو PDF، حتى 10 ميجابايت',
+      allowed: 'JPEG أو PNG أو WebP أو HEIC أو PDF، حتى {{mb}} ميجابايت',
       open: 'فتح',
       download: 'تنزيل',
       delete: 'إزالة',

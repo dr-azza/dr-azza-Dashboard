@@ -23,6 +23,18 @@ const EnvSchema = z.object({
    * restart, such as free test deployments).
    */
   STORAGE_DRIVER: z.enum(['local', 'database']).default('local'),
+  /**
+   * Connections per API process. Serverless hosts run many small copies, so they use a few each
+   * (and the database's pooled endpoint); a single long-running server can use more.
+   */
+  DATABASE_POOL_MAX: z.coerce.number().int().min(1).max(50).default(10),
+  /** Largest upload accepted; hosts with a smaller request limit (Vercel: 4.5 MB) set it lower. */
+  UPLOAD_MAX_BYTES: z.coerce
+    .number()
+    .int()
+    .min(1024)
+    .max(50 * 1024 * 1024)
+    .optional(),
   /** Built web app to serve from the same origin (production); unset in development (Vite serves it). */
   WEB_DIST: z.string().optional(),
   /**

@@ -10,7 +10,8 @@ import { Text } from '@/components/catalyst/text'
 import { useLang } from '@/i18n'
 import { attachmentUrl } from '@/lib/api'
 import { useAttachments, useDeleteAttachment, useUploadAttachment } from '@/lib/queries'
-import { ALLOWED_UPLOAD_TYPES, type AttachmentDto, type AttachmentKindCode, MAX_UPLOAD_BYTES } from '@azza/shared'
+import { uploadMaxBytes, uploadMaxMb } from '@/lib/upload-limit'
+import { ALLOWED_UPLOAD_TYPES, type AttachmentDto, type AttachmentKindCode } from '@azza/shared'
 import { ArrowDownTrayIcon, ArrowUpTrayIcon, DocumentIcon, PhotoIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useState } from 'react'
@@ -110,7 +111,7 @@ function UploadDialog({ patientId, onClose }: { patientId: string; onClose: () =
         const title = String(f.get('title') ?? '').trim()
         if (!(file instanceof File) || file.size === 0 || !title)
           return setFormError(`${t('record.files.file')} · ${t('record.files.title')}`)
-        if (file.size > MAX_UPLOAD_BYTES) return setFormError(t('record.files.allowed'))
+        if (file.size > uploadMaxBytes) return setFormError(t('record.files.allowed', { mb: uploadMaxMb }))
         setFormError(null)
         await upload.mutateAsync({
           file,
@@ -135,7 +136,7 @@ function UploadDialog({ patientId, onClose }: { patientId: string; onClose: () =
         <Field>
           <Label>{t('record.files.file')}</Label>
           <Input name="file" type="file" required accept={ALLOWED_UPLOAD_TYPES.join(',')} />
-          <Description>{t('record.files.allowed')}</Description>
+          <Description>{t('record.files.allowed', { mb: uploadMaxMb })}</Description>
         </Field>
         <div className="grid gap-6 sm:grid-cols-2">
           <Field>

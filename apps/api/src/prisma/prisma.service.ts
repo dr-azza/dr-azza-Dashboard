@@ -6,7 +6,7 @@ import { PrismaClient } from '../generated/prisma/client'
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleDestroy {
   constructor(@Inject(ENV) env: Env) {
-    super({ adapter: new PrismaPg({ connectionString: env.DATABASE_URL }) })
+    super({ adapter: new PrismaPg({ connectionString: env.DATABASE_URL, max: env.DATABASE_POOL_MAX }) })
   }
 
   async onModuleDestroy() {

@@ -12,3 +12,6 @@ coverage
 # Put your licensed kit in ./catalyst-ui-kit and run `pnpm setup:catalyst`.
 catalyst-ui-kit/
 apps/web/src/components/catalyst/
+
+# Vercel CLI link (local only)
+.vercel

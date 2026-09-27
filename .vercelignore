@@ -1,0 +1,18 @@
+# What the Vercel CLI must never upload (it does not read .gitignore).
+.git
+**/node_modules
+**/dist
+**/.turbo
+**/coverage
+.env
+.env.*
+**/.env
+**/.env.*
+!**/.env.example
+apps/api/storage
+apps/web/src/components/catalyst
+catalyst-ui-kit/demo
+catalyst-ui-kit/javascript
+.vercel
+*.log
+.DS_Store
