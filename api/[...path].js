@@ -12,7 +12,11 @@ export default async function handler(req, res) {
     const fastify = app.getHttpAdapter().getInstance()
     await fastify.ready()
     return fastify
-  })()
+  })().catch((error) => {
+    // A failed start (e.g. the database still waking) must not stick: the next request retries.
+    ready = undefined
+    throw error
+  })
   const fastify = await ready
   fastify.server.emit('request', req, res)
 }

@@ -103,12 +103,25 @@ bilingual _Test environment_ strip; use test data only.
   (`scripts/deploy-vercel.sh`): the kit is uploaded privately to the Vercel account only, never to
   this public repo. [`.vercelignore`](.vercelignore) keeps `.env` files and build output out of
   the upload.
-- **Uploads** are stored in the database (`STORAGE_DRIVER=database`). Vercel limits a request body
-  to 4.5 MB, so larger files can't be uploaded on the test site (the real limit is 10 MB).
+- **Uploads** are stored in the database (`STORAGE_DRIVER=database`). Vercel caps a request or
+  response at 4.5 MB, so the test site's upload limit is 4 MB (`UPLOAD_MAX_BYTES` and
+  `VITE_UPLOAD_MAX_BYTES`, also shown in the upload hint); the default elsewhere is 10 MB.
+- **Rate limits** are counted per function copy on Vercel (in memory), so they are looser than on a
+  single server. Fine for QC; a shared store would be needed before real use.
 
-Environment variables (set in Vercel, never in git): `DATABASE_URL` (Neon, **direct** connection),
-`SEED_STAFF_PASSWORD` (demo accounts `doctor@`, `nurse@`, `reception@azzah.test`), `NODE_ENV=production`,
-`VITE_APP_ENV=test`, `ALLOW_DEMO_SEED=true`, `STORAGE_DRIVER=database`, `TRUST_PROXY_HOPS=1`.
+Environment variables (set in Vercel for **production** only, never in git):
+
+| Name                                                                                | Value                                                                     |
+| ----------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `DATABASE_URL`                                                                      | Neon **pooled** connection string (the app, from many function copies)    |
+| `DIRECT_DATABASE_URL`                                                               | Neon **direct** connection string (migrations need one)                   |
+| `DATABASE_POOL_MAX`                                                                 | `3` connections per function copy                                         |
+| `SEED_STAFF_PASSWORD`                                                               | Password of the demo accounts `doctor@`, `nurse@`, `reception@azzah.test` |
+| `UPLOAD_MAX_BYTES`, `VITE_UPLOAD_MAX_BYTES`                                         | `4194304` (4 MB)                                                          |
+| `NODE_ENV`, `VITE_APP_ENV`, `ALLOW_DEMO_SEED`, `STORAGE_DRIVER`, `TRUST_PROXY_HOPS` | `production`, `test`, `true`, `database`, `1`                             |
+
+`scripts/deploy-vercel.sh` only deploys a clean checkout of `main` that matches `origin/main` and
+passed CI; the build changes the database only for production deploys (`VERCEL_ENV=production`).
 
 [`render.yaml`](render.yaml) and `scripts/render-*.sh` describe the same deployment on Render
 (one long-running service); Render needs a card on file even for its free plan.

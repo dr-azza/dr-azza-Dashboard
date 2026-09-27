@@ -11,13 +11,8 @@ import { Text } from '@/components/catalyst/text'
 import { useLang } from '@/i18n'
 import { attachmentUrl } from '@/lib/api'
 import { useCreatePayment, usePayments, useUploadAttachment, useVoidPayment } from '@/lib/queries'
-import {
-  ALLOWED_UPLOAD_TYPES,
-  CreatePaymentSchema,
-  MAX_UPLOAD_BYTES,
-  PAYMENT_METHODS,
-  type PaymentDto,
-} from '@azza/shared'
+import { uploadMaxBytes, uploadMaxMb } from '@/lib/upload-limit'
+import { ALLOWED_UPLOAD_TYPES, CreatePaymentSchema, PAYMENT_METHODS, type PaymentDto } from '@azza/shared'
 import { PaperClipIcon, PlusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useRef, useState } from 'react'
@@ -180,7 +175,7 @@ function NewPaymentDialog({ patientId, onClose }: { patientId: string; onClose: 
         const file = proof instanceof File && proof.size > 0 ? proof : null
         if (!parsed.success)
           return setFormError(parsed.error.issues.map((i) => `${i.path.join('.')}: ${i.message}`).join(' · '))
-        if (file && file.size > MAX_UPLOAD_BYTES) return setFormError(t('record.files.allowed'))
+        if (file && file.size > uploadMaxBytes) return setFormError(t('record.files.allowed', { mb: uploadMaxMb }))
         setFormError(null)
         // Record the payment first, then attach the proof to it.
         const payment = await create.mutateAsync(parsed.data)
@@ -250,7 +245,7 @@ function NewPaymentDialog({ patientId, onClose }: { patientId: string; onClose: 
           <Label>{t('record.payments.proof')}</Label>
           <Input name="proof" type="file" accept={ALLOWED_UPLOAD_TYPES.join(',')} />
           <Description>
-            {t('record.payments.proofHint')} · {t('record.files.allowed')}
+            {t('record.payments.proofHint')} · {t('record.files.allowed', { mb: uploadMaxMb })}
           </Description>
         </Field>
         <Field>

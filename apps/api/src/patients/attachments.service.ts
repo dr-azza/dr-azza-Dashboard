@@ -5,9 +5,10 @@ import {
   type AttachmentMetaInput,
   MAX_UPLOAD_BYTES,
 } from '@azza/shared'
-import { BadRequestException, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable, NotFoundException, PayloadTooLargeException } from '@nestjs/common'
 import { createHash, randomUUID } from 'node:crypto'
 import type { AuthStaff } from '../auth/auth.types'
+import { ENV, type Env } from '../config/env'
 import { fromIsoDayOrNull, STAFF_REF_SELECT, staffRef, toIsoDayOrNull } from '../common/format'
 import type { Prisma } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
@@ -49,11 +50,16 @@ const safeFileName = (name: string) =>
 
 @Injectable()
 export class AttachmentsService {
+  private readonly maxBytes: number
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: PatientScope,
     private readonly storage: StorageService,
-  ) {}
+    @Inject(ENV) env: Env,
+  ) {
+    this.maxBytes = env.UPLOAD_MAX_BYTES ?? MAX_UPLOAD_BYTES
+  }
 
   async list(staff: AuthStaff, patientId: string, kind?: AttachmentKindCode) {
     await this.scope.require(staff, patientId)
@@ -72,8 +78,8 @@ export class AttachmentsService {
     file: { fileName: string; bytes: Buffer; truncated: boolean },
   ) {
     const patient = await this.scope.require(staff, patientId)
-    if (file.truncated || file.bytes.length > MAX_UPLOAD_BYTES) {
-      throw new PayloadTooLargeException(`Files can be at most ${MAX_UPLOAD_BYTES / 1024 / 1024} MB`)
+    if (file.truncated || file.bytes.length > this.maxBytes) {
+      throw new PayloadTooLargeException(`Files can be at most ${Math.floor(this.maxBytes / 1024 / 1024)} MB`)
     }
     if (file.bytes.length === 0) throw new BadRequestException('The file is empty')
 

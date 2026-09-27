@@ -885,7 +885,7 @@ export const en = {
       title: 'Title',
       takenAt: 'Date of test or scan',
       file: 'File',
-      allowed: 'JPEG, PNG, WebP, HEIC or PDF, up to 10 MB',
+      allowed: 'JPEG, PNG, WebP, HEIC or PDF, up to {{mb}} MB',
       open: 'Open',
       download: 'Download',
       delete: 'Remove',

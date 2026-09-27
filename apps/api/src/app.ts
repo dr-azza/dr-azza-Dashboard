@@ -50,7 +50,9 @@ export async function createApp() {
   })
   await app.register(cookie)
   // One file per request, capped at the upload limit; larger files are cut off and rejected.
-  await app.register(multipart, { limits: { fileSize: MAX_UPLOAD_BYTES, files: 1, fields: 10 } })
+  await app.register(multipart, {
+    limits: { fileSize: env.UPLOAD_MAX_BYTES ?? MAX_UPLOAD_BYTES, files: 1, fields: 10 },
+  })
   app.enableCors({ origin: env.CORS_ORIGINS, credentials: true })
 
   // Routes live under /api/v1/…; a breaking change gets /api/v2 while v1 keeps working for older mobile builds.
