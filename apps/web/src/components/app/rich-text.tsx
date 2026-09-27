@@ -33,6 +33,11 @@ function withBlockDirection(html: string) {
   const template = document.createElement('template')
   template.innerHTML = html
   for (const el of template.content.children) el.setAttribute('dir', 'auto')
+  // Links always open in a new tab without access to this page, whatever the stored row says.
+  for (const a of template.content.querySelectorAll('a')) {
+    a.setAttribute('target', '_blank')
+    a.setAttribute('rel', 'noopener noreferrer nofollow')
+  }
   return template.innerHTML
 }
 

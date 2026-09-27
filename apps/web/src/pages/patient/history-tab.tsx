@@ -135,8 +135,18 @@ function HistoryEntryPanel({
           return setFormError(field ? `${t(`record.entries.${field}`)}: ${issue?.message}` : (issue?.message ?? ''))
         }
         setFormError(null)
-        if (entry) await update.mutateAsync({ entryId: entry.id, ...parsed.data })
-        else await create.mutateAsync(parsed.data)
+        if (!entry) {
+          await create.mutateAsync(parsed.data)
+          return onClose()
+        }
+        // Send only what changed; saving an untouched entry must not mark it as edited.
+        const d = parsed.data
+        const changes = {
+          ...(d.recordedOn !== entry.recordedOn && { recordedOn: d.recordedOn }),
+          ...((d.title ?? null) !== entry.title && { title: d.title ?? null }),
+          ...(d.bodyHtml !== entry.bodyHtml && { bodyHtml: d.bodyHtml }),
+        }
+        if (Object.keys(changes).length) await update.mutateAsync({ entryId: entry.id, ...changes })
         onClose()
       }}
       actions={
