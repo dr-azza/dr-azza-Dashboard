@@ -1,3 +1,4 @@
+import type { Answers, FormField } from './forms.js'
 /**
  * Response shapes of the AZZAH API (v1). The API returns these, and the web and mobile apps
  * consume them. Dates are ISO strings; money is a decimal string (never a float).
@@ -228,7 +229,8 @@ export interface HistoryEntryDto {
   editedBy: StaffRef | null
 }
 
-export type TimelineEventType = 'visit' | 'prescription' | 'payment' | 'file' | 'note' | 'pregnancy' | 'history'
+export type TimelineEventType =
+  'visit' | 'prescription' | 'payment' | 'file' | 'note' | 'pregnancy' | 'history' | 'form'
 
 /**
  * One entry in a patient's activity feed. Clients build the visible title from `type` and
@@ -295,4 +297,100 @@ export interface ApiErrorDto {
   statusCode: number
   message: string
   errors?: { path: (string | number)[]; message: string }[]
+}
+
+// --- Forms ---------------------------------------------------------------------------
+
+export type FormLanguageCode = 'ar' | 'en'
+export type FormResponseMatchCode = 'LINK' | 'PHONE' | 'STAFF'
+
+export interface FormListItemDto {
+  id: string
+  title: string
+  language: FormLanguageCode
+  acceptingResponses: boolean
+  archived: boolean
+  questionCount: number
+  responseCount: number
+  /** Responses nobody has reviewed yet. */
+  newCount: number
+  publicToken: string
+  updatedAt: string
+}
+
+export interface FormDto {
+  id: string
+  title: string
+  description: string | null
+  language: FormLanguageCode
+  fields: FormField[]
+  version: number
+  acceptingResponses: boolean
+  archived: boolean
+  publicToken: string
+  responseCount: number
+  updatedAt: string
+  updatedBy: StaffRef | null
+}
+
+export interface FormResponsePatientRef {
+  id: string
+  fullName: string
+  fileNumber: string
+}
+
+export interface FormResponseListItemDto {
+  id: string
+  form: { id: string; title: string }
+  version: number
+  submittedAt: string
+  patient: FormResponsePatientRef | null
+  matchedBy: FormResponseMatchCode | null
+  respondentName: string | null
+  respondentPhone: string | null
+  reviewedAt: string | null
+  reviewedBy: StaffRef | null
+  /** Personal link or the shared one. */
+  viaLink: boolean
+}
+
+export interface FormResponseDto extends FormResponseListItemDto {
+  language: FormLanguageCode
+  /** The questions exactly as the patient saw them (that version's snapshot). */
+  fields: FormField[]
+  answers: Answers
+}
+
+export type FormLinkStatus = 'waiting' | 'opened' | 'submitted' | 'expired' | 'revoked'
+
+export interface FormLinkDto {
+  id: string
+  form: { id: string; title: string }
+  status: FormLinkStatus
+  createdAt: string
+  expiresAt: string
+  openedAt: string | null
+  responseId: string | null
+  createdBy: StaffRef | null
+}
+
+/** Returned once, when a personal link is created: the raw token exists nowhere else. */
+export interface CreatedFormLinkDto extends FormLinkDto {
+  token: string
+}
+
+export type PublicFormState = 'open' | 'closed' | 'submitted' | 'expired'
+
+/** What the patient page needs; never includes other patients' data or staff details. */
+export interface PublicFormDto {
+  mode: 'shared' | 'personal'
+  state: PublicFormState
+  versionId: string
+  title: string
+  description: string | null
+  language: FormLanguageCode
+  fields: FormField[]
+  clinicName: string
+  /** Personal links: the patient's first name for the greeting. */
+  greetingName: string | null
 }

@@ -242,7 +242,7 @@ export class PatientsService {
   async timeline(staff: AuthStaff, patientId: string, limit = 60): Promise<TimelineEventDto[]> {
     await this.scope.require(staff, patientId)
     const by = STAFF_REF_SELECT
-    const [visits, prescriptions, payments, files, notes, pregnancies, history] = await Promise.all([
+    const [visits, prescriptions, payments, files, notes, pregnancies, history, forms] = await Promise.all([
       this.prisma.visit.findMany({
         where: { patientId },
         orderBy: { visitedAt: 'desc' },
@@ -280,9 +280,24 @@ export class PatientsService {
         take: limit,
         select: { id: true, createdAt: true, title: true, bodyText: true, author: by },
       }),
+      this.prisma.formResponse.findMany({
+        where: { patientId },
+        orderBy: { submittedAt: 'desc' },
+        take: limit,
+        select: { id: true, submittedAt: true, matchedBy: true, form: { select: { title: true } } },
+      }),
     ])
 
     const events: TimelineEventDto[] = [
+      ...forms.map((f) => ({
+        type: 'form' as const,
+        id: f.id,
+        at: f.submittedAt.toISOString(),
+        label: f.form.title,
+        detail: null,
+        code: f.matchedBy,
+        by: null,
+      })),
       ...history.map((h) => ({
         type: 'history' as const,
         id: h.id,

@@ -1,5 +1,14 @@
 import type {
   ActivityDto,
+  CreatedFormLinkDto,
+  CreateFormInput,
+  FormDto,
+  FormLinkDto,
+  FormListItemDto,
+  FormResponseDto,
+  FormResponseListItemDto,
+  UpdateFormInput,
+  UpdateFormResponseInput,
   AppointmentDto,
   AppointmentRangeDto,
   AttachmentDto,
@@ -335,3 +344,107 @@ export function useActivity(id: string, includeViews: boolean) {
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   })
 }
+
+// --- Forms -------------------------------------------------------------------------
+
+export const useForms = (archived = false) =>
+  useQuery({
+    queryKey: ['forms', 'list', { archived }],
+    queryFn: () => api<FormListItemDto[]>(`/forms?archived=${archived}`),
+  })
+
+export const useForm = (formId: string) =>
+  useQuery({ queryKey: ['forms', 'detail', formId], queryFn: () => api<FormDto>(`/forms/${formId}`) })
+
+export function useCreateForm() {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: CreateFormInput) => api<FormDto>('/forms', { body: input }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['forms', 'list'] }),
+  })
+}
+
+/** Saves the form and puts the saved copy straight into the cache (no refetch flash). */
+export function useUpdateForm(formId: string) {
+  const qc = useQueryClient()
+  const onSuccess = (form: FormDto) => {
+    qc.setQueryData(['forms', 'detail', formId], form)
+    void qc.invalidateQueries({ queryKey: ['forms', 'list'] })
+    void qc.invalidateQueries({ queryKey: ['form-responses'] })
+  }
+  return {
+    save: useMutation({
+      mutationFn: (input: UpdateFormInput) => api<FormDto>(`/forms/${formId}`, { method: 'PATCH', body: input }),
+      onSuccess,
+    }),
+    rotate: useMutation({
+      mutationFn: () => api<FormDto>(`/forms/${formId}/rotate-link`, { method: 'POST' }),
+      onSuccess,
+    }),
+  }
+}
+
+export function useFormResponses(formId: string, status: 'new' | 'reviewed' | undefined) {
+  return useInfiniteQuery({
+    queryKey: ['form-responses', 'list', formId, { status }],
+    initialPageParam: '',
+    queryFn: ({ pageParam }) => {
+      const params = new URLSearchParams({ limit: '50' })
+      if (status) params.set('status', status)
+      if (pageParam) params.set('cursor', pageParam)
+      return api<Page<FormResponseListItemDto>>(`/forms/${formId}/responses?${params}`)
+    },
+    getNextPageParam: (last) => last.nextCursor ?? undefined,
+  })
+}
+
+export const useFormResponse = (responseId: string | null) =>
+  useQuery({
+    enabled: !!responseId,
+    queryKey: ['form-responses', 'detail', responseId],
+    queryFn: () => api<FormResponseDto>(`/form-responses/${responseId}`),
+  })
+
+/** Unreviewed responses, for the sidebar badge. */
+export const useFormResponsesSummary = (enabled = true) =>
+  useQuery({
+    enabled,
+    queryKey: ['form-responses', 'summary'],
+    queryFn: () => api<{ newCount: number }>('/form-responses/summary'),
+    refetchInterval: 60_000,
+  })
+
+export function useUpdateFormResponse(responseId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (input: UpdateFormResponseInput) =>
+      api<FormResponseDto>(`/form-responses/${responseId}`, { method: 'PATCH', body: input }),
+    onSuccess: (response, input) => {
+      qc.setQueryData(['form-responses', 'detail', responseId], response)
+      void qc.invalidateQueries({ queryKey: ['form-responses'] })
+      void qc.invalidateQueries({ queryKey: ['forms', 'list'] })
+      // The response may have moved onto (or off) a patient's record.
+      void qc.invalidateQueries({
+        predicate: (q) =>
+          q.queryKey[0] === 'patient' && ['forms', 'timeline', 'activity'].includes(String(q.queryKey[2])),
+      })
+      if (input.patientId) void qc.invalidateQueries({ queryKey: keys.part(input.patientId, 'forms') })
+    },
+  })
+}
+
+export const usePatientForms = (id: string) =>
+  useQuery(part<{ links: FormLinkDto[]; responses: FormResponseListItemDto[] }>(id, 'forms', '/forms'))
+
+export const useCreateFormLink = (id: string) =>
+  usePatientMutation(id, ['forms'], (formId: string) =>
+    api<CreatedFormLinkDto>(`/patients/${id}/form-links`, { body: { formId } }),
+  )
+
+export const useRevokeFormLink = (id: string) =>
+  usePatientMutation(id, ['forms'], (linkId: string) =>
+    api<FormLinkDto>(`/patients/${id}/form-links/${linkId}/revoke`, { method: 'POST' }),
+  )
+
+/** Absolute URL of a form link, for copying. */
+export const formLinkUrl = (token: string) => `${window.location.origin}/f/${token}`

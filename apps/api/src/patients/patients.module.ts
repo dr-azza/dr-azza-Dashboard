@@ -47,5 +47,7 @@ import { PrescriptionsService } from './prescriptions.service'
     AppointmentsService,
     ActivityService,
   ],
+  // Other modules reach patient data only through the clinic-scoped lookup.
+  exports: [PatientScope],
 })
 export class PatientsModule {}

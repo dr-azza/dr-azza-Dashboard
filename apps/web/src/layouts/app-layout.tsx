@@ -22,7 +22,7 @@ import { SidebarLayout } from '@/components/catalyst/sidebar-layout'
 import { ThemeSwitcher, ThemeToggleButton } from '@/components/app/theme-switcher'
 import { AzzahAppIcon } from '@/components/brand/logo'
 import { initials as initialsOf } from '@/components/app/ui'
-import { formResponses, reminders } from '@/data/mock'
+import { reminders } from '@/data/mock'
 import { useLang } from '@/i18n'
 import { ArrowRightStartOnRectangleIcon, ChevronUpIcon, LanguageIcon } from '@heroicons/react/16/solid'
 import {
@@ -35,7 +35,7 @@ import {
   UsersIcon,
 } from '@heroicons/react/20/solid'
 import { UNAUTHORIZED_EVENT } from '@/lib/api'
-import { useLogout, useMe } from '@/lib/queries'
+import { useFormResponsesSummary, useLogout, useMe } from '@/lib/queries'
 import { FEATURES } from '@/lib/features'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -72,7 +72,7 @@ export function AppLayout() {
   const initials = initialsOf(me.data?.fullName ?? '')
   const is = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 
-  const newResponses = formResponses.filter((r) => r.status === 'flagged' || r.status === 'new').length
+  const newResponses = useFormResponsesSummary(!!me.data).data?.newCount ?? 0
   const failedReminders = reminders.filter((r) => r.status === 'failed').length
 
   const userMenu = (anchor: 'top start' | 'bottom end') => (
