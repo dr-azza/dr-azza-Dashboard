@@ -12,7 +12,10 @@ export default async function handler(req, res) {
   ready ??= (async () => {
     // One-file CommonJS bundle of the API (apps/api/scripts/bundle-serverless.mjs): Vercel's runtime
     // can't require() the ES-module-only packages the unbundled build would load.
-    const { createApp } = await import('../apps/api/dist/serverless.bundle.cjs')
+    // A CommonJS module arrives as the default export; its named exports can't be detected
+    // statically in minified output.
+    const { default: bundle } = await import('../apps/api/dist/serverless.bundle.cjs')
+    const { createApp } = bundle
     const app = await createApp()
     await app.init()
     const fastify = app.getHttpAdapter().getInstance()
