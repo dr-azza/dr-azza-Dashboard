@@ -9,10 +9,16 @@ import { PrismaClient } from '../src/generated/prisma/client'
 
 const url = process.env.DATABASE_URL
 if (!url) throw new Error('DATABASE_URL is not set (copy apps/api/.env.example to .env)')
-if (process.env.NODE_ENV === 'production') throw new Error('Refusing to seed a production database')
+// A test deployment runs in production mode but may opt in to demo data (never a real clinic's DB).
+if (process.env.NODE_ENV === 'production' && process.env.ALLOW_DEMO_SEED !== 'true') {
+  throw new Error('Refusing to seed a production database (set ALLOW_DEMO_SEED=true only for a test deployment)')
+}
 
 const staffPassword = process.env.SEED_STAFF_PASSWORD ?? ''
 if (staffPassword.length < 10) throw new Error('Set SEED_STAFF_PASSWORD (10+ characters) in apps/api/.env')
+
+/** Written last by a complete seed run. */
+const SEED_DONE = 'system.demo_seed_completed'
 
 const prisma = new PrismaClient({ adapter: new PrismaPg({ connectionString: url }) })
 
@@ -23,6 +29,16 @@ const daysAgo = (n: number) => {
 }
 
 async function main() {
+  // On a test deployment the seed runs at every deploy but fills the database only once, so what
+  // testers create or change is kept. "Once" means the last run finished (the marker below is its
+  // final write); an interrupted run is simply repeated, since every record is upserted.
+  if (
+    process.env.SEED_ONLY_IF_EMPTY === 'true' &&
+    (await prisma.auditLog.count({ where: { action: SEED_DONE } })) > 0
+  ) {
+    console.log('Demo data already seeded; skipped.')
+    return
+  }
   const clinic = await prisma.clinic.upsert({
     where: { slug: 'azzah-main' },
     update: {},
@@ -261,6 +277,7 @@ async function main() {
     })
   }
 
+  await prisma.auditLog.create({ data: { clinicId: clinic.id, action: SEED_DONE, entity: 'system' } })
   console.log(`Seeded clinic "${clinic.name}" with ${staff.length} staff and ${patients.length} patients.`)
 }
 

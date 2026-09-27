@@ -90,6 +90,16 @@ model StaffMember {
   @@map("staff_members")
 }
 
+/// File bytes kept in the database, for hosts without a lasting disk (STORAGE_DRIVER=database,
+/// e.g. a free test deployment). Production uses an object store instead.
+model StoredFile {
+  key       String   @id
+  bytes     Bytes
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  @@map("stored_files")
+}
+
 /// A one-time link to set a password: the first one when someone joins, or a reset later.
 model StaffInvite {
   id          String    @id @default(uuid(7)) @db.Uuid
