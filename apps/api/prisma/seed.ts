@@ -38,7 +38,7 @@ async function main() {
   const staffIds: Record<string, string> = {}
   for (const s of staff) {
     const row = await prisma.staffMember.upsert({
-      where: { clinicId_email: { clinicId: clinic.id, email: s.email } },
+      where: { email: s.email },
       update: { passwordHash },
       create: { ...s, clinicId: clinic.id, passwordHash },
     })

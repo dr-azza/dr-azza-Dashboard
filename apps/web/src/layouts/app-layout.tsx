@@ -29,6 +29,7 @@ import {
   BellAlertIcon,
   CalendarDaysIcon,
   ClipboardDocumentListIcon,
+  UserGroupIcon,
   Cog6ToothIcon,
   HeartIcon,
   HomeIcon,
@@ -168,6 +169,10 @@ export function AppLayout() {
                 <SidebarLabel>{t('app.switchLanguage')}</SidebarLabel>
               </SidebarItem>
               <ThemeSwitcher />
+              <SidebarItem href="/team" current={is('/team')}>
+                <UserGroupIcon />
+                <SidebarLabel>{t('nav.team')}</SidebarLabel>
+              </SidebarItem>
               <SidebarItem href="/settings" current={is('/settings')}>
                 <Cog6ToothIcon />
                 <SidebarLabel>{t('nav.settings')}</SidebarLabel>
