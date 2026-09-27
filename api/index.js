@@ -6,7 +6,9 @@ let ready
 
 export default async function handler(req, res) {
   ready ??= (async () => {
-    const { createApp } = await import('../apps/api/dist/serverless.js')
+    // One-file CommonJS bundle of the API (apps/api/scripts/bundle-serverless.mjs): Vercel's runtime
+    // can't require() the ES-module-only packages the unbundled build would load.
+    const { createApp } = await import('../apps/api/dist/serverless.bundle.cjs')
     const app = await createApp()
     await app.init()
     const fastify = app.getHttpAdapter().getInstance()

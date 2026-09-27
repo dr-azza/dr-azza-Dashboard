@@ -10,6 +10,7 @@ if [ ! -d catalyst-ui-kit/typescript ]; then
 fi
 pnpm setup:catalyst
 pnpm turbo run build --filter=@azza/web --filter='@azza/api...'
+pnpm --filter @azza/api bundle:serverless
 
 # Database changes once per production deploy, here. (If they fail, the deploy fails and the old
 # one stays live.) Preview builds never touch the shared QC database.

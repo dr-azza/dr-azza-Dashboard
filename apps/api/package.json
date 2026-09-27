@@ -13,7 +13,8 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
     "db:studio": "prisma studio",
-    "test:integration": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run test/integration"
+    "test:integration": "node --env-file-if-exists=.env ./node_modules/vitest/vitest.mjs run test/integration",
+    "bundle:serverless": "node scripts/bundle-serverless.mjs"
   },
   "dependencies": {
     "@azza/shared": "workspace:*",
@@ -47,6 +48,7 @@
     "@types/pg": "^8.23.1",
     "@types/sanitize-html": "^2.16.1",
     "dotenv": "^18.0.4",
+    "esbuild": "^0.28.2",
     "prisma": "7.10.0",
     "tsx": "^4.23.15",
     "typescript": "^6.0.3",

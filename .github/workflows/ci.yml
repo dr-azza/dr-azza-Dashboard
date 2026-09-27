@@ -65,3 +65,10 @@ jobs:
 
       - name: Build (all packages except web)
         run: pnpm turbo run build --filter='!@azza/web'
+
+      # Vercel's function runtime can't require() ES-module-only packages, so the API ships there as
+      # one bundle. This loads it the same way (require(esm) off) to catch a regression before deploy.
+      - name: Serverless bundle loads without require(esm)
+        run: |
+          pnpm --filter @azza/api bundle:serverless
+          cd apps/api && node --no-experimental-require-module -e "require('./dist/serverless.bundle.cjs')"
