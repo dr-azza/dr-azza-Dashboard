@@ -461,6 +461,8 @@ export const en = {
     sendReset: 'Password reset link',
     linkHint: 'Makes a new one-time link; any older link stops working.',
     pendingInvite: 'Invite link valid until {{when}}',
+    pendingReset: 'Password reset link pending until {{when}}',
+    sentBy: 'sent by {{name}}',
     empty: 'No team members yet.',
     errors: {
       name: 'Enter the full name.',

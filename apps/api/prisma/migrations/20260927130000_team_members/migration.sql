@@ -1,8 +1,8 @@
 -- Team management: phone numbers, one-time password links, and sign-in emails unique across
--- clinics (stored lower-case). Stops if two accounts would end up with the same email.
+-- clinics (stored trimmed and lower-case). Stops if two accounts would end up with the same email.
 DO $$
 BEGIN
-  IF EXISTS (SELECT lower(email) FROM "staff_members" GROUP BY lower(email) HAVING count(*) > 1) THEN
+  IF EXISTS (SELECT lower(trim(email)) FROM "staff_members" GROUP BY lower(trim(email)) HAVING count(*) > 1) THEN
     RAISE EXCEPTION 'Two staff accounts share an email (ignoring case); resolve before applying 20260927130000_team_members';
   END IF;
 END $$;

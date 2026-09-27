@@ -16,9 +16,8 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common'
-import { randomBytes } from 'node:crypto'
 import { AuditService } from '../audit/audit.service'
-import { hashPassword, hashToken } from '../auth/auth.service'
+import { DAY_MS, hashPassword, hashToken, newSecretToken } from '../auth/auth.service'
 import type { AuthStaff } from '../auth/auth.types'
 import { Prisma } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
@@ -37,15 +36,13 @@ const MEMBER_SELECT = {
     where: { usedAt: null, revokedAt: null },
     orderBy: { createdAt: 'desc' },
     take: 1,
-    select: { expiresAt: true },
+    select: { expiresAt: true, createdBy: { select: { fullName: true } } },
   },
 } as const
 type MemberRow = Prisma.StaffMemberGetPayload<{ select: typeof MEMBER_SELECT }>
 
 const statusOf = (m: { isActive: boolean; passwordHash: string | null }): StaffStatus =>
   !m.isActive ? 'inactive' : m.passwordHash ? 'active' : 'invited'
-
-const DAY_MS = 24 * 60 * 60 * 1000
 
 /**
  * The clinic's team. Everyone can see it; only owners change it. The clinic always keeps at
@@ -71,17 +68,20 @@ export class TeamService {
   async create(staff: AuthStaff, input: CreateStaffInput): Promise<StaffInviteDto> {
     this.requireManager(staff)
     try {
-      const member = await this.prisma.staffMember.create({
-        data: {
-          clinicId: staff.clinicId,
-          fullName: input.fullName,
-          email: input.email,
-          phone: input.phone ?? null,
-          role: input.role,
-        },
-        select: { id: true },
+      // Member and first link together: never a member left without a link to join.
+      return await this.prisma.$transaction(async (tx) => {
+        const member = await tx.staffMember.create({
+          data: {
+            clinicId: staff.clinicId,
+            fullName: input.fullName,
+            email: input.email,
+            phone: input.phone ?? null,
+            role: input.role,
+          },
+          select: { id: true },
+        })
+        return this.issueLink(tx, staff, member.id)
       })
-      return this.issueLink(staff, member.id)
     } catch (error) {
       throw this.emailTaken(error)
     }
@@ -151,7 +151,7 @@ export class TeamService {
         code: 'INACTIVE_MEMBER',
         message: 'Reactivate this member before sending a link.',
       })
-    return this.issueLink(staff, memberId)
+    return this.prisma.$transaction((tx) => this.issueLink(tx, staff, memberId))
   }
 
   // --- Public: the link itself ------------------------------------------------------
@@ -171,12 +171,13 @@ export class TeamService {
     const passwordHash = await hashPassword(password)
     const now = new Date()
     await this.prisma.$transaction(async (tx) => {
-      // Single use, even if two tabs submit at once: only the first update matches.
+      // Single use, even if two tabs submit at once: only the first update matches. Expiry and the
+      // member's status are checked again here, because hashing the password above takes a while.
       const { count } = await tx.staffInvite.updateMany({
-        where: { id: invite.id, usedAt: null, revokedAt: null },
+        where: { id: invite.id, usedAt: null, revokedAt: null, expiresAt: { gt: now }, staff: { isActive: true } },
         data: { usedAt: now },
       })
-      if (count === 0) throw new GoneException('This link has already been used.')
+      if (count === 0) throw new GoneException('This link can no longer be used.')
       await tx.staffMember.update({ where: { id: invite.staffId }, data: { passwordHash } })
       // A new password signs out every existing session (e.g. a reset after a lost phone).
       await tx.session.updateMany({ where: { staffId: invite.staffId, revokedAt: null }, data: { revokedAt: now } })
@@ -193,19 +194,17 @@ export class TeamService {
 
   // --- Internals --------------------------------------------------------------------
 
-  private async issueLink(staff: AuthStaff, memberId: string): Promise<StaffInviteDto> {
-    const token = randomBytes(32).toString('base64url')
+  private async issueLink(tx: Prisma.TransactionClient, staff: AuthStaff, memberId: string): Promise<StaffInviteDto> {
+    const token = newSecretToken()
     const expiresAt = new Date(Date.now() + STAFF_INVITE_TTL_DAYS * DAY_MS)
-    const member = await this.prisma.$transaction(async (tx) => {
-      await tx.staffInvite.updateMany({
-        where: { staffId: memberId, usedAt: null, revokedAt: null },
-        data: { revokedAt: new Date() },
-      })
-      await tx.staffInvite.create({
-        data: { staffId: memberId, tokenHash: hashToken(token), expiresAt, createdById: staff.id },
-      })
-      return tx.staffMember.findUniqueOrThrow({ where: { id: memberId }, select: MEMBER_SELECT })
+    await tx.staffInvite.updateMany({
+      where: { staffId: memberId, usedAt: null, revokedAt: null },
+      data: { revokedAt: new Date() },
     })
+    await tx.staffInvite.create({
+      data: { staffId: memberId, tokenHash: hashToken(token), expiresAt, createdById: staff.id },
+    })
+    const member = await tx.staffMember.findUniqueOrThrow({ where: { id: memberId }, select: MEMBER_SELECT })
     return { member: this.toDto(member, staff), token, expiresAt: expiresAt.toISOString() }
   }
 
@@ -251,7 +250,10 @@ export class TeamService {
       status: statusOf(r),
       lastLoginAt: r.lastLoginAt?.toISOString() ?? null,
       createdAt: r.createdAt.toISOString(),
-      pendingInvite: invite && invite.expiresAt > new Date() ? { expiresAt: invite.expiresAt.toISOString() } : null,
+      pendingInvite:
+        invite && invite.expiresAt > new Date()
+          ? { expiresAt: invite.expiresAt.toISOString(), sentBy: invite.createdBy?.fullName ?? null }
+          : null,
       isYou: r.id === staff.id,
     }
   }

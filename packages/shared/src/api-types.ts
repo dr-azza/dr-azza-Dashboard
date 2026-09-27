@@ -409,7 +409,8 @@ export interface TeamMemberDto {
   lastLoginAt: string | null
   createdAt: string
   /** The latest unused set-password link, if any (invite or reset). */
-  pendingInvite: { expiresAt: string } | null
+  /** Who sent it is shown to the whole team, so a reset is never silent. */
+  pendingInvite: { expiresAt: string; sentBy: string | null } | null
   isYou: boolean
 }
 

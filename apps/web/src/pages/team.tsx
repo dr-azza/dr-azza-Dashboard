@@ -100,9 +100,12 @@ export function TeamPage() {
                 <TableCell>{t(`team.roles.${m.role}`)}</TableCell>
                 <TableCell>
                   <ToneBadge tone={statusTone[m.status]}>{t(`team.statuses.${m.status}`)}</ToneBadge>
-                  {m.status === 'invited' && m.pendingInvite && (
+                  {m.pendingInvite && m.status !== 'inactive' && (
                     <div className="mt-1 text-xs/5 text-zinc-500">
-                      {t('team.pendingInvite', { when: fmt.day(m.pendingInvite.expiresAt) })}
+                      {t(m.status === 'invited' ? 'team.pendingInvite' : 'team.pendingReset', {
+                        when: fmt.day(m.pendingInvite.expiresAt),
+                      })}
+                      {m.pendingInvite.sentBy && ` · ${t('team.sentBy', { name: m.pendingInvite.sentBy })}`}
                     </div>
                   )}
                 </TableCell>
@@ -215,14 +218,15 @@ function MemberPanel({ member, onClose }: { member?: TeamMemberDto; onClose: () 
             return
           }
           const d = parsed.data
-          await update.mutateAsync({
-            id: member.id,
+          const changes = {
             ...(d.fullName !== member.fullName && { fullName: d.fullName }),
             ...(d.email !== member.email && { email: d.email }),
             ...((d.phone ?? null) !== member.phone && { phone: d.phone ?? null }),
             ...(d.role !== member.role && { role: d.role }),
             ...(active !== (member.status !== 'inactive') && { active }),
-          })
+          }
+          // Nothing changed: just close (no request, no audit entry).
+          if (Object.keys(changes).length) await update.mutateAsync({ id: member.id, ...changes })
           onClose()
         } catch {
           // Shown below (e.g. email already used, or the last owner).

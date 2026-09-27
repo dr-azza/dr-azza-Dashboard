@@ -11,15 +11,14 @@ import {
   type UpdateFormResponseInput,
 } from '@azza/shared'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { randomBytes } from 'node:crypto'
-import { hashToken } from '../auth/auth.service'
+import { DAY_MS, hashToken, newSecretToken } from '../auth/auth.service'
 import type { AuthStaff } from '../auth/auth.types'
 import { STAFF_REF_SELECT, staffRef } from '../common/format'
 import type { Prisma } from '../generated/prisma/client'
 import { PatientScope } from '../patients/patient-scope.service'
 import { PrismaService } from '../prisma/prisma.service'
 
-const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+const daysAgo = (days: number) => new Date(Date.now() - days * DAY_MS)
 
 const LIST_INCLUDE = {
   form: { select: { id: true, title: true } },
@@ -176,13 +175,13 @@ export class FormResponsesService {
     if (!form) throw new NotFoundException('Form not found')
     if (!form.acceptingResponses) throw new BadRequestException('This form is closed to new responses')
 
-    const token = randomBytes(32).toString('base64url')
+    const token = newSecretToken()
     const link = await this.prisma.formLink.create({
       data: {
         formId,
         patientId,
         tokenHash: hashToken(token),
-        expiresAt: new Date(Date.now() + FORM_LINK_TTL_DAYS * 24 * 60 * 60 * 1000),
+        expiresAt: new Date(Date.now() + FORM_LINK_TTL_DAYS * DAY_MS),
         createdById: staff.id,
       },
       include: LINK_INCLUDE,

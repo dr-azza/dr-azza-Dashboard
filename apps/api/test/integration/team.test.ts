@@ -132,4 +132,31 @@ describe.skipIf(!url)('team (integration)', () => {
     expect(await login(nurseEmail, nursePassword)).toBeNull()
     expect(await login(nurseEmail, 'a-brand-new-password')).toBeTruthy()
   })
+
+  it('names the member in the audit log, keeps invited members out of pickers, and refuses expired links', async () => {
+    const res = (
+      await call('POST', '/team', { fullName: 'Late Joiner', email: `late-${run}@azzah.test`, role: 'DOCTOR' }, owner)
+    ).json()
+    const audit = await db.auditLog.findFirst({
+      where: { action: 'team.member.create', actorId: ownerId },
+      orderBy: { id: 'desc' },
+    })
+    expect(audit?.entityId).toBe(res.member.id)
+    const link = (await call('POST', `/team/${res.member.id}/link`, undefined, owner)).json()
+    const linkAudit = await db.auditLog.findFirst({ where: { action: 'team.member.link' }, orderBy: { id: 'desc' } })
+    expect(linkAudit?.entityId).toBe(res.member.id)
+
+    // Invited (no password yet): not offered for appointments.
+    const pickers = (await call('GET', '/staff', undefined, owner)).json() as { id: string }[]
+    expect(pickers.some((p) => p.id === res.member.id)).toBe(false)
+
+    await db.staffInvite.updateMany({
+      where: { staffId: res.member.id, usedAt: null },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    })
+    expect((await call('POST', `/public/invites/${link.token}`, { password: 'long-enough-password' })).statusCode).toBe(
+      410,
+    )
+    expect((await db.staffMember.findUnique({ where: { id: res.member.id } }))?.passwordHash).toBeNull()
+  })
 })

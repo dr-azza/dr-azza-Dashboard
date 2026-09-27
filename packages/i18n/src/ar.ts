@@ -460,6 +460,8 @@ export const ar: Messages = {
     sendReset: 'رابط تغيير كلمة المرور',
     linkHint: 'ينشئ رابطًا جديدًا لمرة واحدة، ويتوقف أي رابط أقدم.',
     pendingInvite: 'رابط الدعوة صالح حتى {{when}}',
+    pendingReset: 'رابط تغيير كلمة المرور معلّق حتى {{when}}',
+    sentBy: 'أرسله {{name}}',
     empty: 'لا يوجد أعضاء بعد.',
     errors: {
       name: 'اكتب الاسم بالكامل.',

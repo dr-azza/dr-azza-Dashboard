@@ -13,6 +13,9 @@ const TOUCH_AFTER_MS = 5 * 60 * 1000
 
 export const hashPassword = (password: string) => hash(password, ARGON2)
 export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex')
+/** 256 random bits, URL-safe: sessions, invite links and personal form links all use this. */
+export const newSecretToken = () => randomBytes(32).toString('base64url')
+export const DAY_MS = 24 * 60 * 60 * 1000
 
 @Injectable()
 export class AuthService {
@@ -46,7 +49,7 @@ export class AuthService {
       throw new UnauthorizedException('Email or password is incorrect')
     }
 
-    const token = randomBytes(32).toString('base64url')
+    const token = newSecretToken()
     const session = await this.prisma.session.create({
       data: {
         staffId: staff.id,
