@@ -1,7 +1,6 @@
 import cookie from '@fastify/cookie'
 import helmet from '@fastify/helmet'
 import multipart from '@fastify/multipart'
-import fastifyStatic from '@fastify/static'
 import rateLimit from '@fastify/rate-limit'
 import { VersioningType } from '@nestjs/common'
 import { NestFactory } from '@nestjs/core'
@@ -81,6 +80,9 @@ export async function createApp() {
  */
 async function serveWebApp(app: NestFastifyApplication, root: string) {
   if (!existsSync(path.join(root, 'index.html'))) throw new Error(`WEB_DIST has no index.html: ${root}`)
+  // Loaded only when the API serves the web app itself (serverless hosts serve it from their CDN),
+  // so hosts that don't need it never load it.
+  const { default: fastifyStatic } = await import('@fastify/static')
   const fastify = app.getHttpAdapter().getInstance()
   await app.register(fastifyStatic, {
     root,

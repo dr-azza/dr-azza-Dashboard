@@ -1,5 +1,5 @@
-// Vercel Function for the whole API: the catch-all file name routes every /api/* request here with
-// its original URL, so Fastify sees exactly the path the browser asked for.
+// Vercel Function for the whole API: vercel.json rewrites every /api/* request here, and the
+// request keeps its original URL, so Fastify sees exactly the path the browser asked for.
 // The NestJS app is created once per function instance and reused across requests; each request
 // is handed to Fastify as-is, so routing, validation, auth and audit work exactly as on a server.
 let ready
