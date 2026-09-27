@@ -11,12 +11,14 @@ import { useLogin, useMe } from '@/lib/queries'
 import { LoginSchema } from '@azza/shared'
 import { ExclamationTriangleIcon } from '@heroicons/react/16/solid'
 import { useState } from 'react'
-import { Navigate, useNavigate, useSearchParams } from 'react-router'
+import { Navigate, useLocation, useNavigate, useSearchParams } from 'react-router'
 
 export function LoginPage() {
   const { t, toggle } = useLang()
   const navigate = useNavigate()
   const [params] = useSearchParams()
+  // Coming from a just-used invite link: the email is already known (passed in state, not the URL).
+  const knownEmail = (useLocation().state as { email?: string } | null)?.email
   const me = useMe()
   const login = useLogin()
   const [error, setError] = useState<string | null>(null)
@@ -60,13 +62,23 @@ export function LoginPage() {
         <FieldGroup>
           <Field>
             <Label>{t('auth.email')}</Label>
-            <Input type="email" name="email" autoComplete="username" required autoFocus invalid={!!error} dir="ltr" />
+            <Input
+              type="email"
+              name="email"
+              autoComplete="username"
+              required
+              autoFocus={!knownEmail}
+              defaultValue={knownEmail}
+              invalid={!!error}
+              dir="ltr"
+            />
           </Field>
           <Field>
             <Label>{t('auth.password')}</Label>
             <Input
               type="password"
               name="password"
+              autoFocus={!!knownEmail}
               autoComplete="current-password"
               required
               invalid={!!error}

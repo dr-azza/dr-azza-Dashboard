@@ -5,7 +5,7 @@ import type { AuthStaff } from '../auth/auth.types'
 import { CurrentStaff } from '../auth/decorators'
 import { PrismaService } from '../prisma/prisma.service'
 
-/** The clinic's active staff, e.g. to choose who an appointment is with. Names and roles only. */
+/** Staff who can sign in now, e.g. to choose who an appointment is with. Names and roles only. */
 @ApiTags('staff')
 @Controller('staff')
 export class StaffController {
@@ -14,7 +14,8 @@ export class StaffController {
   @Get()
   async list(@CurrentStaff() staff: AuthStaff): Promise<StaffListItemDto[]> {
     return this.prisma.staffMember.findMany({
-      where: { clinicId: staff.clinicId, isActive: true },
+      // Invited members who haven't set a password yet can't sign in, so they aren't offered.
+      where: { clinicId: staff.clinicId, isActive: true, passwordHash: { not: null } },
       orderBy: { fullName: 'asc' },
       select: { id: true, fullName: true, role: true },
     })

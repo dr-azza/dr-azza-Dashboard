@@ -71,6 +71,7 @@ const router = createBrowserRouter([
                 path: '/reminders',
                 lazy: () => import('@/pages/simple-pages').then((m) => ({ Component: m.RemindersPage })),
               },
+              { path: '/team', lazy: () => import('@/pages/team').then((m) => ({ Component: m.TeamPage })) },
               {
                 path: '/settings',
                 lazy: () => import('@/pages/settings').then((m) => ({ Component: m.SettingsPage })),
@@ -89,6 +90,12 @@ const router = createBrowserRouter([
         path: '/f/:token',
         errorElement: <RouteError audience="patient" />,
         lazy: () => import('@/pages/public-form').then((m) => ({ Component: m.PublicFormPage })),
+      },
+      // One-time link for a new team member (or a password reset): no session, no layout.
+      {
+        path: '/invite/:token',
+        errorElement: <RouteError />,
+        lazy: () => import('@/pages/invite').then((m) => ({ Component: m.InvitePage })),
       },
       // Unknown URLs get the same friendly screen as a 404.
       {

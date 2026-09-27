@@ -1,5 +1,9 @@
 import type {
   ActivityDto,
+  CreateStaffInput,
+  StaffInviteDto,
+  TeamMemberDto,
+  UpdateStaffInput,
   CreatedFormLinkDto,
   CreateFormInput,
   FormDto,
@@ -461,3 +465,35 @@ export const useRevokeFormLink = (id: string) =>
 
 /** Absolute URL of a form link, for copying. */
 export const formLinkUrl = (token: string) => `${window.location.origin}/f/${token}`
+
+// --- Team --------------------------------------------------------------------------
+
+export const useTeam = () => useQuery({ queryKey: ['team'], queryFn: () => api<TeamMemberDto[]>('/team') })
+
+function useTeamMutation<TInput, TResult>(fn: (input: TInput) => Promise<TResult>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['team'] }),
+        // Pickers (e.g. "appointment with") list active staff.
+        qc.invalidateQueries({ queryKey: ['staff'] }),
+        qc.invalidateQueries({ queryKey: keys.me }),
+      ]),
+  })
+}
+
+export const useAddMember = () =>
+  useTeamMutation((input: CreateStaffInput) => api<StaffInviteDto>('/team', { body: input }))
+
+export const useUpdateMember = () =>
+  useTeamMutation(({ id, ...input }: UpdateStaffInput & { id: string }) =>
+    api<TeamMemberDto>(`/team/${id}`, { method: 'PATCH', body: input }),
+  )
+
+export const useSendMemberLink = () =>
+  useTeamMutation((id: string) => api<StaffInviteDto>(`/team/${id}/link`, { method: 'POST' }))
+
+/** Absolute URL of a set-password link, for copying. */
+export const inviteLinkUrl = (token: string) => `${window.location.origin}/invite/${token}`

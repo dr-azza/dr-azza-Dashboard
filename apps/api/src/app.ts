@@ -11,6 +11,9 @@ import { MAX_UPLOAD_BYTES } from '@azza/shared'
 import { AppModule } from './app.module'
 import { ENV, type Env, loadEnv } from './config/env'
 
+/** Masks the token in public link URLs, e.g. /api/v1/public/invites/<token> → …/invites/[token]. */
+export const redactTokens = (url: string) => url.replace(/(\/public\/(?:invites|forms))\/[^/?#]+/g, '$1/[token]')
+
 /** Builds the configured application. Used by main.ts and by the tests. */
 export async function createApp() {
   const { TRUST_PROXY_HOPS } = loadEnv()
@@ -19,7 +22,13 @@ export async function createApp() {
     new FastifyAdapter({
       trustProxy: TRUST_PROXY_HOPS || false,
       // Medical app: never log bodies, and keep request logs to method, path and status.
-      logger: { level: process.env.NODE_ENV === 'test' ? 'error' : 'info' },
+      logger: {
+        level: process.env.NODE_ENV === 'test' ? 'error' : 'info',
+        // One-time link tokens (invites, personal form links) are credentials: never log them.
+        serializers: {
+          req: (req: { method: string; url: string }) => ({ method: req.method, url: redactTokens(req.url) }),
+        },
+      },
       bodyLimit: 1024 * 1024,
     }),
     { logger: process.env.NODE_ENV === 'test' ? ['error'] : undefined },

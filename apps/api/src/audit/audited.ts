@@ -35,7 +35,18 @@ export class AuditInterceptor implements NestInterceptor {
       concatMap(async (result: unknown) => {
         const params = request.params ?? {}
         const resultId = result && typeof result === 'object' && 'id' in result ? String(result.id) : undefined
-        const entityId = params.entryId ?? params.itemId ?? resultId ?? params.patientId ?? null
+        // Results that wrap a record (e.g. { member, token }) still name it.
+        const wrappedId =
+          result &&
+          typeof result === 'object' &&
+          'member' in result &&
+          result.member &&
+          typeof result.member === 'object' &&
+          'id' in result.member
+            ? String(result.member.id)
+            : undefined
+        const entityId =
+          params.entryId ?? params.itemId ?? params.memberId ?? resultId ?? wrappedId ?? params.patientId ?? null
         // Every patient route is under /patients/:patientId; creating a patient links to the new one.
         const resultPatientId =
           result &&

@@ -1,3 +1,4 @@
+import type { StaffStatus } from './team.js'
 import type { Answers, FormField } from './forms.js'
 /**
  * Response shapes of the AZZAH API (v1). The API returns these, and the web and mobile apps
@@ -393,4 +394,37 @@ export interface PublicFormDto {
   clinicName: string
   /** Personal links: the patient's first name for the greeting. */
   greetingName: string | null
+}
+
+// --- Team ----------------------------------------------------------------------------
+
+export interface TeamMemberDto {
+  id: string
+  fullName: string
+  email: string
+  phone: string | null
+  role: StaffRoleCode
+  /** invited: added but hasn't set a password yet; inactive: can't sign in. */
+  status: StaffStatus
+  lastLoginAt: string | null
+  createdAt: string
+  /** The latest unused set-password link, if any (invite or reset). */
+  /** Who sent it is shown to the whole team, so a reset is never silent. */
+  pendingInvite: { expiresAt: string; sentBy: string | null } | null
+  isYou: boolean
+}
+
+/** Returned when a set-password link is made: the raw token exists nowhere else. */
+export interface StaffInviteDto {
+  member: TeamMemberDto
+  token: string
+  expiresAt: string
+}
+
+export interface PublicInviteDto {
+  fullName: string
+  email: string
+  clinicName: string
+  /** welcome: first password; reset: replacing an existing one. */
+  kind: 'welcome' | 'reset'
 }
