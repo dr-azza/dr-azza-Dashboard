@@ -199,6 +199,7 @@ export const ar: Messages = {
     details: 'العنوان والوصف',
     description: 'الوصف',
     descriptionPlaceholder: 'اختياري: الغرض من النموذج ومدة تعبئته…',
+    conflict: 'عدّل شخص آخر هذا النموذج بعد أن فتحته. أعد تحميل الصفحة لرؤية أحدث نسخة (انسخ ما تحتاجه أولًا).',
     fixErrors: 'بعض الأسئلة تحتاج إلى مراجعة قبل الحفظ.',
     builder: {
       addQuestion: 'إضافة سؤال',

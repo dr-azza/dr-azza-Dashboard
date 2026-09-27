@@ -4,7 +4,7 @@
  * and what the server accepts can never disagree.
  */
 import { z } from 'zod'
-import { optionalText, requiredText } from './schemas/common.js'
+import { optionalText, paginationQuery, requiredText } from './schemas/common.js'
 
 // --- Question model -----------------------------------------------------------------
 
@@ -32,6 +32,7 @@ export const FORM_LANGUAGES = ['ar', 'en'] as const
 export type FormLanguage = (typeof FORM_LANGUAGES)[number]
 
 export const FORM_LIMITS = {
+  title: 160,
   fields: 100,
   options: 50,
   label: 500,
@@ -174,8 +175,18 @@ export const FormFieldsSchema = z
 export type AnswerValue = string | number | string[] | null
 export type Answers = Record<string, AnswerValue>
 
-const isAnswered = (v: AnswerValue | undefined) =>
-  v != null && (Array.isArray(v) ? v.length > 0 : typeof v === 'number' ? Number.isFinite(v) : v.trim() !== '')
+/**
+ * Whether a value counts as an answer. Values of an unexpected type (sent by a broken or hostile
+ * client) count as answered, so validation reports them as invalid instead of crashing.
+ */
+const isAnswered = (v: unknown) =>
+  typeof v === 'string'
+    ? v.trim() !== ''
+    : Array.isArray(v)
+      ? v.length > 0
+      : typeof v === 'number'
+        ? Number.isFinite(v)
+        : v != null
 
 function ruleHolds(rule: ConditionRule, value: AnswerValue | undefined) {
   switch (rule.op) {
@@ -200,15 +211,14 @@ function ruleHolds(rule: ConditionRule, value: AnswerValue | undefined) {
 }
 
 /**
- * The ids of questions currently shown, in order. A question hidden by its condition counts as
- * unanswered for the questions after it, so a whole branch disappears together.
+ * The ids of questions currently shown, in order. A rule about a hidden question never holds
+ * (whatever its operator), so everything that depends on a hidden question hides with it.
  */
 export function visibleFieldIds(fields: readonly FormField[], answers: Answers): Set<string> {
   const visible = new Set<string>()
   for (const field of fields) {
     const condition = field.condition
-    const holds = (rule: ConditionRule) =>
-      ruleHolds(rule, visible.has(rule.fieldId) ? answers[rule.fieldId] : undefined)
+    const holds = (rule: ConditionRule) => visible.has(rule.fieldId) && ruleHolds(rule, answers[rule.fieldId])
     const shown = !condition || (condition.match === 'all' ? condition.rules.every(holds) : condition.rules.some(holds))
     if (shown) visible.add(field.id)
   }
@@ -216,6 +226,15 @@ export function visibleFieldIds(fields: readonly FormField[], answers: Answers):
 }
 
 export type AnswerError = 'required' | 'invalid' | 'too_long' | 'out_of_range'
+
+/** YYYY-MM-DD that exists on the calendar (rejects 2024-02-31, which Date.parse would roll over). */
+function isCalendarDate(value: string) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value)
+  if (!m) return false
+  const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])]
+  const date = new Date(Date.UTC(y, mo - 1, d))
+  return date.getUTCFullYear() === y && date.getUTCMonth() === mo - 1 && date.getUTCDate() === d
+}
 
 /** Accepts local Egyptian numbers (010…), 00-prefixed and +-prefixed ones, in Arabic or Latin digits. */
 export function normalizePhone(input: string): string | null {
@@ -269,8 +288,7 @@ export function validateAnswers(fields: readonly FormField[], raw: Record<string
         break
       }
       case 'date': {
-        if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value) || Number.isNaN(Date.parse(value)))
-          fail('invalid')
+        if (typeof value !== 'string' || !isCalendarDate(value)) fail('invalid')
         else clean[field.id] = value
         break
       }
@@ -328,17 +346,25 @@ export function answerText(
 
 // --- Requests ------------------------------------------------------------------------
 
-export const CreateFormSchema = z.object({
-  title: requiredText(160),
+const FormContentSchema = z.object({
+  title: requiredText(FORM_LIMITS.title),
   description: optionalText(FORM_LIMITS.description),
   language: z.enum(FORM_LANGUAGES),
-  fields: FormFieldsSchema.default([]),
+  fields: FormFieldsSchema,
 })
+
+export const CreateFormSchema = FormContentSchema.extend({ fields: FormFieldsSchema.default([]) })
 export type CreateFormInput = z.input<typeof CreateFormSchema>
 
-export const UpdateFormSchema = CreateFormSchema.partial().extend({
+/**
+ * Every key optional and without defaults: a PATCH that only toggles `acceptingResponses` must
+ * leave the questions exactly as they are.
+ */
+export const UpdateFormSchema = FormContentSchema.partial().extend({
   acceptingResponses: z.boolean().optional(),
   archived: z.boolean().optional(),
+  /** The version the editor started from; a save on top of someone else's newer save is refused. */
+  expectedVersion: z.number().int().min(1).optional(),
 })
 export type UpdateFormInput = z.input<typeof UpdateFormSchema>
 
@@ -361,9 +387,9 @@ export const UpdateFormResponseSchema = z.object({
 })
 export type UpdateFormResponseInput = z.input<typeof UpdateFormResponseSchema>
 
-export const ListFormResponsesQuerySchema = z.object({
+export const ListFormResponsesQuerySchema = paginationQuery.extend({
   status: z.enum(['new', 'reviewed']).optional(),
-  cursor: z.string().optional(),
+  cursor: z.uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 })
 export type ListFormResponsesQuery = z.output<typeof ListFormResponsesQuerySchema>

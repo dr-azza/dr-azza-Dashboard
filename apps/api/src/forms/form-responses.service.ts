@@ -11,14 +11,13 @@ import {
   type UpdateFormResponseInput,
 } from '@azza/shared'
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
-import { createHash, randomBytes } from 'node:crypto'
+import { randomBytes } from 'node:crypto'
+import { hashToken } from '../auth/auth.service'
 import type { AuthStaff } from '../auth/auth.types'
 import { STAFF_REF_SELECT, staffRef } from '../common/format'
 import type { Prisma } from '../generated/prisma/client'
 import { PatientScope } from '../patients/patient-scope.service'
 import { PrismaService } from '../prisma/prisma.service'
-
-export const hashToken = (token: string) => createHash('sha256').update(token).digest('hex')
 
 const LIST_INCLUDE = {
   form: { select: { id: true, title: true } },

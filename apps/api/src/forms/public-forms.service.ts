@@ -3,7 +3,7 @@ import { BadRequestException, ConflictException, GoneException, Injectable, NotF
 import { AuditService } from '../audit/audit.service'
 import { Prisma } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
-import { hashToken } from './form-responses.service'
+import { hashToken } from '../auth/auth.service'
 
 const FORM_SELECT = {
   id: true,

@@ -18,6 +18,11 @@ const EnvSchema = z.object({
   SESSION_TTL_HOURS: z.coerce.number().int().min(1).max(720).default(12),
   /** Local folder for uploaded files in development. Production will use object storage. */
   STORAGE_DIR: z.string().default('./storage'),
+  /**
+   * Proxies in front of the API whose X-Forwarded-For may be trusted (0 = none). Rate limits
+   * key on the client IP, so trusting a header nobody sets lets clients pick their own IP.
+   */
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
 })
 
 export type Env = z.infer<typeof EnvSchema>

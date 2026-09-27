@@ -10,6 +10,7 @@ import {
   type ConditionOp,
   type ConditionRule,
   FIELD_TYPES,
+  FORM_LIMITS,
   type FieldType,
   hasOptions,
   opNeedsValue,
@@ -190,6 +191,7 @@ export function QuestionEditor({
                 resizable={false}
                 autoFocus={!field.label}
                 dir={dir}
+                maxLength={FORM_LIMITS.label}
                 placeholder={t('forms.builder.labelPlaceholder')}
                 value={field.label}
                 onChange={(e) => update({ label: e.target.value })}
@@ -417,6 +419,7 @@ function OptionRow({
       <Input
         data-option={option.id}
         dir={dir}
+        maxLength={FORM_LIMITS.option}
         aria-label={t('forms.builder.option', { n: index + 1 })}
         value={option.label}
         onChange={(e) => onChange(e.target.value)}

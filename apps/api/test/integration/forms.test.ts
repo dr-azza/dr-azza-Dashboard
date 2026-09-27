@@ -227,6 +227,35 @@ describe.skipIf(!url)('forms (integration)', () => {
     expect(timeline.some((e: { type: string }) => e.type === 'form')).toBe(true)
   })
 
+  it('keeps the questions when only the settings change, and refuses stale saves', async () => {
+    const before = (await call('GET', `/forms/${formId}`)).json()
+    const closed = (await call('PATCH', `/forms/${formId}`, { acceptingResponses: false })).json()
+    const archived = (await call('PATCH', `/forms/${formId}`, { archived: true })).json()
+    const restored = (await call('PATCH', `/forms/${formId}`, { archived: false, acceptingResponses: true })).json()
+    for (const f of [closed, archived, restored]) {
+      expect(f.fields).toEqual(before.fields)
+      expect(f.version).toBe(before.version)
+    }
+    expect((await call('GET', '/forms')).json().find((f: { id: string }) => f.id === formId).questionCount).toBe(4)
+
+    // Someone saved in between: an editor still on the old version gets a conflict, not an overwrite.
+    const stale = await call('PATCH', `/forms/${formId}`, { title: 'Stale', expectedVersion: before.version - 1 })
+    expect(stale.statusCode).toBe(409)
+    expect((await call('GET', `/forms/${formId}`)).json().title).not.toBe('Stale')
+  })
+
+  it('answers bad input with 400, never 500', async () => {
+    const page = (await call('GET', `/public/forms/${token}`, undefined, false)).json()
+    const typed = await call(
+      'POST',
+      `/public/forms/${token}/responses`,
+      { versionId: page.versionId, answers: { preg1: true }, respondent: { name: 'X', phone: '01011112222' } },
+      false,
+    )
+    expect(typed.statusCode).toBe(400)
+    expect((await call('GET', `/forms/${formId}/responses?cursor=not-a-uuid`)).statusCode).toBe(400)
+  })
+
   it('closes, revokes and rotates links, and never leaks another clinic’s forms', async () => {
     const link = (await call('POST', `/patients/${patientId}/form-links`, { formId })).json()
     await call('POST', `/patients/${patientId}/form-links/${link.id}/revoke`)

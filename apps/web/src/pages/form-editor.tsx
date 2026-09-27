@@ -34,8 +34,9 @@ import { FormRenderer } from '@/components/forms/form-renderer'
 import { QuestionEditor } from '@/components/forms/question-editor'
 import { ResponsePanel } from '@/components/forms/response-panel'
 import { useLang } from '@/i18n'
+import { ApiError } from '@/lib/api'
 import { formLinkUrl, useForm, useFormResponses, useUpdateForm } from '@/lib/queries'
-import { type FormDto, type FormField, type FormLanguage, UpdateFormSchema } from '@azza/shared'
+import { FORM_LIMITS, type FormDto, type FormField, type FormLanguage, UpdateFormSchema } from '@azza/shared'
 import {
   closestCenter,
   DndContext,
@@ -126,6 +127,7 @@ function Editor({
   const [openId, setOpenId] = useState<string | null>(null)
   const [showIssues, setShowIssues] = useState(false)
   const [titleError, setTitleError] = useState(false)
+  const [invalid, setInvalid] = useState(false)
   const [saved, setSaved] = useState(false)
   const [sharing, setSharing] = useState(false)
   const [previewing, setPreviewing] = useState(false)
@@ -141,18 +143,24 @@ function Editor({
 
   const onSave = async () => {
     setShowIssues(true)
-    const parsed = UpdateFormSchema.safeParse(draft)
-    if (!draft.title.trim()) setTitleError(true)
-    if (!parsed.success || !draft.title.trim()) {
+    const parsed = UpdateFormSchema.safeParse({ ...draft, expectedVersion: form.version })
+    const badTitle = !parsed.success && parsed.error.issues.some((i) => i.path[0] === 'title')
+    setTitleError(badTitle)
+    setInvalid(!parsed.success)
+    if (!parsed.success) {
       // Open the first question with a problem so it's visible.
       const first = draft.fields.find((f) => issues[f.id])
       if (first) setOpenId(first.id)
       return
     }
-    const next = await save.mutateAsync(parsed.data)
-    setBase(draftOf(next))
-    setDraft(draftOf(next))
-    setSaved(true)
+    try {
+      const next = await save.mutateAsync(parsed.data)
+      setBase(draftOf(next))
+      setDraft(draftOf(next))
+      setSaved(true)
+    } catch {
+      // Shown below (a conflict gets its own message with a reload button).
+    }
   }
 
   // The form's own language names new options ("Option 1"), not the staff member's.
@@ -210,7 +218,7 @@ function Editor({
         </div>
       </div>
 
-      {showIssues && (issueCount > 0 || titleError) && (
+      {showIssues && (issueCount > 0 || invalid) && (
         <p
           role="alert"
           className="rounded-lg bg-red-50 px-4 py-3 text-sm/6 font-medium text-red-800 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900"
@@ -218,7 +226,19 @@ function Editor({
           {t('forms.fixErrors')}
         </p>
       )}
-      <RequestError error={save.error} />
+      {save.error instanceof ApiError && save.error.status === 409 ? (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-amber-50 px-4 py-3 text-sm/6 text-amber-900 ring-1 ring-amber-200 dark:bg-amber-950/40 dark:text-amber-200 dark:ring-amber-900"
+        >
+          {t('forms.conflict')}
+          <Button outline onClick={() => window.location.reload()}>
+            {t('errors.reload')}
+          </Button>
+        </div>
+      ) : (
+        <RequestError error={save.error} />
+      )}
 
       <Headless.TabGroup selectedIndex={TABS.indexOf(tab)} onChange={(i) => onTab(TABS[i])}>
         <Headless.TabList className="flex gap-1 border-b border-zinc-950/10 dark:border-white/10">
@@ -333,6 +353,7 @@ function DetailsCard({
             <Label>{t('forms.formTitle')}</Label>
             <Input
               dir={dir}
+              maxLength={FORM_LIMITS.title}
               value={draft.title}
               invalid={titleError}
               onChange={(e) => onChange({ title: e.target.value })}
@@ -352,6 +373,7 @@ function DetailsCard({
           <Textarea
             rows={2}
             dir={dir}
+            maxLength={FORM_LIMITS.description}
             placeholder={t('forms.descriptionPlaceholder')}
             value={draft.description ?? ''}
             onChange={(e) => onChange({ description: e.target.value || null })}

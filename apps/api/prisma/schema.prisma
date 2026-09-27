@@ -261,6 +261,8 @@ model Form {
   /// Validated with FormFieldsSchema (@azza/shared) before it is stored.
   fields             Json
   version            Int          @default(1)
+  /// Answerable questions (sections excluded), kept with `fields` so lists never load the JSON.
+  questionCount      Int          @default(0) @map("question_count")
   /// Token of the shareable link (/f/:token). Public by design; rotating it retires old links.
   publicToken        String       @unique @map("public_token")
   acceptingResponses Boolean      @default(true) @map("accepting_responses")

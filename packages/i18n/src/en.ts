@@ -197,6 +197,8 @@ export const en = {
     details: 'Title and description',
     description: 'Description',
     descriptionPlaceholder: 'Optional: what the form is for, how long it takes…',
+    conflict:
+      'This form was changed by someone else since you opened it. Reload to see the latest version (copy anything you need first).',
     fixErrors: 'Some questions need attention before saving.',
     builder: {
       addQuestion: 'Add question',

@@ -81,6 +81,29 @@ describe('conditional logic', () => {
     expect(no.has('bled1')).toBe(false)
   })
 
+  it('hides a follow-up whose source question is hidden, whatever the operator', () => {
+    // Q2 only if pregnant; Q3 only if Q2 is not "yes". Not pregnant: Q2 hidden, so Q3 must be too.
+    const branch = FormFieldsSchema.parse([
+      { id: 'qone', type: 'yes_no', label: 'Pregnant?' },
+      {
+        id: 'qtwo',
+        type: 'yes_no',
+        label: 'First pregnancy?',
+        condition: { match: 'all', rules: [{ fieldId: 'qone', op: 'equals', value: 'yes' }] },
+      },
+      {
+        id: 'qthr',
+        type: 'number',
+        label: 'How many before?',
+        required: true,
+        condition: { match: 'all', rules: [{ fieldId: 'qtwo', op: 'not_equals', value: 'yes' }] },
+      },
+    ]) as FormField[]
+    expect(visibleFieldIds(branch, { qone: 'no' }).has('qthr')).toBe(false)
+    expect(validateAnswers(branch, { qone: 'no' }).ok).toBe(true)
+    expect(visibleFieldIds(branch, { qone: 'yes', qtwo: 'no' }).has('qthr')).toBe(true)
+  })
+
   it('compares numbers for scales', () => {
     expect(visibleFieldIds(fields, { pain1: 6 }).has('pain2')).toBe(false)
     expect(visibleFieldIds(fields, { pain1: 7 }).has('pain2')).toBe(true)
@@ -116,6 +139,16 @@ describe('answer validation', () => {
     expect(result.ok).toBe(true)
     expect(result.answers.symp1).toEqual(['o1a1', 'o1b1'])
     expect(result.answers.phon1).toBe('+201012345678')
+  })
+
+  it('rejects impossible dates and answers of the wrong type without throwing', () => {
+    const dated = FormFieldsSchema.parse([
+      { id: 'date', type: 'date', label: 'Date' },
+      { id: 'text', type: 'short_text', label: 'Text' },
+    ]) as FormField[]
+    expect(validateAnswers(dated, { date: '2024-02-31' }).errors).toEqual({ date: 'invalid' })
+    expect(validateAnswers(dated, { date: '2024-02-29' }).ok).toBe(true)
+    expect(validateAnswers(dated, { text: true, date: { x: 1 } }).errors).toEqual({ text: 'invalid', date: 'invalid' })
   })
 
   it('normalizes the phone formats patients actually type', () => {

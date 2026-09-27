@@ -1,9 +1,9 @@
 import type { CreateFormInput, FormDto, FormField, FormListItemDto, UpdateFormInput } from '@azza/shared'
-import { Injectable, NotFoundException } from '@nestjs/common'
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import { randomBytes } from 'node:crypto'
 import type { AuthStaff } from '../auth/auth.types'
 import { STAFF_REF_SELECT, staffRef } from '../common/format'
-import type { Prisma } from '../generated/prisma/client'
+import { Prisma } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
 
 /** 128 random bits: the shareable link is public by design, but must not be guessable. */
@@ -27,6 +27,8 @@ const toDto = (f: Row): FormDto => ({
   updatedBy: staffRef(f.updatedBy),
 })
 
+const countQuestions = (fields: unknown) => (fields as { type: string }[]).filter((q) => q.type !== 'section').length
+
 /** JSON with object keys sorted, so equal content compares equal (jsonb does not keep key order). */
 function canonical(value: unknown): string {
   if (Array.isArray(value)) return `[${value.map(canonical).join(',')}]`
@@ -48,18 +50,29 @@ export class FormsService {
   constructor(private readonly prisma: PrismaService) {}
 
   async list(staff: AuthStaff, archived: boolean): Promise<FormListItemDto[]> {
-    const forms = await this.prisma.form.findMany({
-      where: { clinicId: staff.clinicId, archivedAt: archived ? { not: null } : null },
-      orderBy: { updatedAt: 'desc' },
-      include: {
-        _count: { select: { responses: true } },
-      },
-    })
-    const unreviewed = await this.prisma.formResponse.groupBy({
-      by: ['formId'],
-      where: { clinicId: staff.clinicId, reviewedAt: null, formId: { in: forms.map((f) => f.id) } },
-      _count: { _all: true },
-    })
+    const [forms, unreviewed] = await Promise.all([
+      this.prisma.form.findMany({
+        where: { clinicId: staff.clinicId, archivedAt: archived ? { not: null } : null },
+        orderBy: { updatedAt: 'desc' },
+        // Never the questions themselves: the list only needs their count.
+        select: {
+          id: true,
+          title: true,
+          language: true,
+          acceptingResponses: true,
+          archivedAt: true,
+          questionCount: true,
+          publicToken: true,
+          updatedAt: true,
+          _count: { select: { responses: true } },
+        },
+      }),
+      this.prisma.formResponse.groupBy({
+        by: ['formId'],
+        where: { clinicId: staff.clinicId, reviewedAt: null },
+        _count: { _all: true },
+      }),
+    ])
     const newByForm = new Map(unreviewed.map((r) => [r.formId, r._count._all]))
     return forms.map((f) => ({
       id: f.id,
@@ -67,7 +80,7 @@ export class FormsService {
       language: f.language,
       acceptingResponses: f.acceptingResponses,
       archived: f.archivedAt != null,
-      questionCount: (f.fields as unknown as FormField[]).filter((q) => q.type !== 'section').length,
+      questionCount: f.questionCount,
       responseCount: f._count.responses,
       newCount: newByForm.get(f.id) ?? 0,
       publicToken: f.publicToken,
@@ -89,6 +102,7 @@ export class FormsService {
     const form = await this.prisma.form.create({
       data: {
         ...data,
+        questionCount: countQuestions(data.fields),
         clinicId: staff.clinicId,
         publicToken: newPublicToken(),
         createdById: staff.id,
@@ -106,6 +120,9 @@ export class FormsService {
    */
   async update(staff: AuthStaff, formId: string, input: UpdateFormInput) {
     const current = await this.require(staff, formId)
+    if (input.expectedVersion !== undefined && input.expectedVersion !== current.version) {
+      throw new ConflictException('This form was changed by someone else. Reload to see the latest version.')
+    }
     const next = {
       title: input.title ?? current.title,
       description: input.description !== undefined ? (input.description ?? null) : current.description,
@@ -115,23 +132,33 @@ export class FormsService {
     const changed = content(next) !== content(current)
     const version = changed ? current.version + 1 : current.version
 
-    const form = await this.prisma.$transaction(async (tx) => {
-      if (changed) {
-        await tx.formVersion.create({ data: { formId, version, ...next, createdById: staff.id } })
-      }
-      return tx.form.update({
-        where: { id: formId },
-        data: {
-          ...next,
-          version,
-          updatedById: staff.id,
-          ...(input.acceptingResponses !== undefined && { acceptingResponses: input.acceptingResponses }),
-          ...(input.archived !== undefined && { archivedAt: input.archived ? new Date() : null }),
-        },
-        include: INCLUDE,
+    try {
+      const form = await this.prisma.$transaction(async (tx) => {
+        // Compare-and-set on the version: of two saves racing from the same version, one wins
+        // and the other gets a clear conflict instead of silently overwriting it.
+        const { count } = await tx.form.updateMany({
+          where: { id: formId, version: current.version },
+          data: {
+            ...next,
+            version,
+            questionCount: countQuestions(next.fields),
+            updatedById: staff.id,
+            ...(input.acceptingResponses !== undefined && { acceptingResponses: input.acceptingResponses }),
+            ...(input.archived !== undefined && { archivedAt: input.archived ? new Date() : null }),
+          },
+        })
+        if (count === 0)
+          throw new ConflictException('This form was just changed by someone else. Reload and try again.')
+        if (changed) await tx.formVersion.create({ data: { formId, version, ...next, createdById: staff.id } })
+        return tx.form.findUniqueOrThrow({ where: { id: formId }, include: INCLUDE })
       })
-    })
-    return toDto(form)
+      return toDto(form)
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2002') {
+        throw new ConflictException('This form was just changed by someone else. Reload and try again.')
+      }
+      throw error
+    }
   }
 
   /** Issues a new shareable link; the old one stops working immediately. */
