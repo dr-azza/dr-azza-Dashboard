@@ -60,6 +60,10 @@ const router = createBrowserRouter([
               },
               { path: '/forms', lazy: () => import('@/pages/forms').then((m) => ({ Component: m.FormsPage })) },
               {
+                path: '/responses',
+                lazy: () => import('@/pages/responses').then((m) => ({ Component: m.ResponsesPage })),
+              },
+              {
                 path: '/forms/:formId',
                 lazy: () => import('@/pages/form-editor').then((m) => ({ Component: m.FormEditorPage })),
               },

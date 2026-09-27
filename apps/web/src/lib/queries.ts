@@ -384,15 +384,28 @@ export function useUpdateForm(formId: string) {
   }
 }
 
-export function useFormResponses(formId: string, status: 'new' | 'reviewed' | undefined) {
+export interface ResponseFilters {
+  formId?: string
+  status?: 'new' | 'reviewed'
+  /** false: only responses not tied to a patient yet. */
+  linked?: boolean
+  /** Only responses from the last N days. */
+  days?: number
+}
+
+/** Responses across the clinic (or one form), newest first. */
+export function useResponses(filters: ResponseFilters) {
   return useInfiniteQuery({
-    queryKey: ['form-responses', 'list', formId, { status }],
+    queryKey: ['form-responses', 'list', filters],
     initialPageParam: '',
     queryFn: ({ pageParam }) => {
       const params = new URLSearchParams({ limit: '50' })
-      if (status) params.set('status', status)
+      if (filters.formId) params.set('formId', filters.formId)
+      if (filters.status) params.set('status', filters.status)
+      if (filters.linked !== undefined) params.set('linked', String(filters.linked))
+      if (filters.days) params.set('days', String(filters.days))
       if (pageParam) params.set('cursor', pageParam)
-      return api<Page<FormResponseListItemDto>>(`/forms/${formId}/responses?${params}`)
+      return api<Page<FormResponseListItemDto>>(`/form-responses?${params}`)
     },
     getNextPageParam: (last) => last.nextCursor ?? undefined,
   })
@@ -410,7 +423,7 @@ export const useFormResponsesSummary = (enabled = true) =>
   useQuery({
     enabled,
     queryKey: ['form-responses', 'summary'],
-    queryFn: () => api<{ newCount: number }>('/form-responses/summary'),
+    queryFn: () => api<{ newCount: number; unlinkedCount: number; lastWeekCount: number }>('/form-responses/summary'),
     refetchInterval: 60_000,
   })
 

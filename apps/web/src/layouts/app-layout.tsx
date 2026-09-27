@@ -29,6 +29,7 @@ import {
   BellAlertIcon,
   CalendarDaysIcon,
   ClipboardDocumentListIcon,
+  InboxArrowDownIcon,
   Cog6ToothIcon,
   HeartIcon,
   HomeIcon,
@@ -155,6 +156,10 @@ export function AppLayout() {
               <SidebarItem href="/forms" current={is('/forms')}>
                 <ClipboardDocumentListIcon />
                 <SidebarLabel>{t('nav.forms')}</SidebarLabel>
+              </SidebarItem>
+              <SidebarItem href="/responses" current={is('/responses')}>
+                <InboxArrowDownIcon />
+                <SidebarLabel>{t('nav.responses')}</SidebarLabel>
                 <CountBadge count={newResponses} />
               </SidebarItem>
               <SidebarItem href="/reminders" current={is('/reminders')}>

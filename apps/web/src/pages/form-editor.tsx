@@ -1,4 +1,4 @@
-import { RequestError, useFormat } from '@/components/app/form'
+import { RequestError } from '@/components/app/form'
 import { SidePanel } from '@/components/app/side-panel'
 import { ToneBadge } from '@/components/app/ui'
 import { Button } from '@/components/catalyst/button'
@@ -17,7 +17,6 @@ import { Input } from '@/components/catalyst/input'
 import { Link } from '@/components/catalyst/link'
 import { Select } from '@/components/catalyst/select'
 import { Switch, SwitchField } from '@/components/catalyst/switch'
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { Textarea } from '@/components/catalyst/textarea'
 import {
@@ -30,12 +29,13 @@ import {
   replaceField,
   TYPE_MENU,
 } from '@/components/forms/builder-model'
+import { CopyLinkButton } from '@/components/forms/copy-link-button'
 import { FormRenderer } from '@/components/forms/form-renderer'
 import { QuestionEditor } from '@/components/forms/question-editor'
-import { ResponsePanel } from '@/components/forms/response-panel'
+import { type ResponseStatus, ResponsesTable, StatusTabs } from '@/components/forms/responses-table'
 import { useLang } from '@/i18n'
 import { ApiError } from '@/lib/api'
-import { formLinkUrl, useForm, useFormResponses, useUpdateForm } from '@/lib/queries'
+import { formLinkUrl, useForm, useUpdateForm } from '@/lib/queries'
 import { FORM_LIMITS, type FormDto, type FormField, type FormLanguage, UpdateFormSchema } from '@azza/shared'
 import {
   closestCenter,
@@ -54,13 +54,11 @@ import {
   ArrowTopRightOnSquareIcon,
   CheckIcon,
   ChevronLeftIcon,
-  ClipboardDocumentIcon,
   EyeIcon,
   LinkIcon,
   PlusIcon,
 } from '@heroicons/react/16/solid'
 import * as Headless from '@headlessui/react'
-import clsx from 'clsx'
 import i18n from 'i18next'
 import { useEffect, useMemo, useState } from 'react'
 import { useBlocker, useParams, useSearchParams } from 'react-router'
@@ -513,7 +511,6 @@ function SharePanel({
 }) {
   const { t } = useLang()
   const { save, rotate } = useUpdateForm(form.id)
-  const [copied, setCopied] = useState(false)
   const [confirmRotate, setConfirmRotate] = useState(false)
   const url = formLinkUrl(form.publicToken)
 
@@ -537,19 +534,7 @@ function SharePanel({
               aria-label={t('forms.sharedLink')}
               onFocus={(e) => e.currentTarget.select()}
             />
-            <Button
-              color="brand"
-              className="shrink-0 whitespace-nowrap"
-              disabled={form.archived}
-              onClick={async () => {
-                await navigator.clipboard.writeText(url)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 2000)
-              }}
-            >
-              {copied ? <CheckIcon /> : <ClipboardDocumentIcon />}
-              {copied ? t('forms.copied') : t('forms.copy')}
-            </Button>
+            <CopyLinkButton url={url} disabled={form.archived} />
           </div>
           <Button plain href={url} target="_blank" className="mt-2">
             <ArrowTopRightOnSquareIcon />
@@ -620,88 +605,16 @@ function SharePanel({
   )
 }
 
-const FILTERS = ['new', 'reviewed', 'all'] as const
-
 function ResponsesTab({ formId }: { formId: string }) {
   const { t } = useLang()
-  const fmt = useFormat()
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]>('new')
-  const [openId, setOpenId] = useState<string | null>(null)
-  const responses = useFormResponses(formId, filter === 'all' ? undefined : filter)
-  const items = responses.data?.pages.flatMap((p) => p.items) ?? []
-
+  const [status, setStatus] = useState<ResponseStatus>('new')
   return (
     <div className="space-y-4">
-      <div className="inline-flex rounded-lg bg-zinc-100 p-1 dark:bg-white/5" role="tablist">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            type="button"
-            role="tab"
-            aria-selected={filter === f}
-            onClick={() => setFilter(f)}
-            className={clsx(
-              'rounded-md px-3 py-1.5 text-sm/5 font-medium',
-              filter === f
-                ? 'bg-white text-zinc-950 shadow-xs dark:bg-zinc-800 dark:text-white'
-                : 'text-zinc-500 hover:text-zinc-950 dark:hover:text-white',
-            )}
-          >
-            {t(`forms.responses.filter${f[0].toUpperCase()}${f.slice(1)}`)}
-          </button>
-        ))}
-      </div>
-      <RequestError error={responses.error} />
-      {responses.isSuccess && items.length === 0 && (
-        <p className="rounded-xl bg-white px-6 py-12 text-center text-sm/6 text-zinc-500 ring-1 ring-zinc-950/8 dark:bg-zinc-900 dark:ring-white/10">
-          {filter === 'new' ? t('forms.responses.emptyNew') : t('forms.responses.empty')}
-        </p>
-      )}
-      {items.length > 0 && (
-        <Table className="[--gutter:--spacing(6)] lg:[--gutter:--spacing(10)]">
-          <TableHead>
-            <TableRow>
-              <TableHeader>{t('forms.responses.submitted')}</TableHeader>
-              <TableHeader>{t('forms.responses.from')}</TableHeader>
-              <TableHeader className="max-sm:hidden">{t('forms.responses.status')}</TableHeader>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {items.map((r) => (
-              <TableRow key={r.id} className="cursor-pointer" onClick={() => setOpenId(r.id)}>
-                <TableCell className="tabular-nums">
-                  <button
-                    type="button"
-                    className="text-start font-medium focus-visible:outline-2 focus-visible:outline-brand-600"
-                    onClick={() => setOpenId(r.id)}
-                  >
-                    {fmt.dayTime(r.submittedAt)}
-                  </button>
-                </TableCell>
-                <TableCell>
-                  <div className="font-medium">{r.patient?.fullName ?? r.respondentName ?? '—'}</div>
-                  <div className="text-xs/5 text-zinc-500">
-                    {r.patient ? t(`forms.responses.match.${r.matchedBy ?? 'STAFF'}`) : t('forms.responses.notLinked')}
-                  </div>
-                </TableCell>
-                <TableCell className="max-sm:hidden">
-                  <ToneBadge tone={r.reviewedAt ? 'neutral' : 'danger'}>
-                    {r.reviewedAt ? t('forms.responses.reviewed') : t('forms.responses.new')}
-                  </ToneBadge>
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      )}
-      {responses.hasNextPage && (
-        <div className="flex justify-center">
-          <Button outline onClick={() => responses.fetchNextPage()} disabled={responses.isFetchingNextPage}>
-            {t('forms.responses.loadMore')}
-          </Button>
-        </div>
-      )}
-      <ResponsePanel responseId={openId} onClose={() => setOpenId(null)} />
+      <StatusTabs value={status} onChange={setStatus} />
+      <ResponsesTable
+        filters={{ formId, status: status === 'all' ? undefined : status }}
+        emptyText={status === 'new' ? t('forms.responses.emptyNew') : t('forms.responses.empty')}
+      />
     </div>
   )
 }

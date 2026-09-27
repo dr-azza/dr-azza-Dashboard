@@ -354,6 +354,8 @@ model FormResponse {
   @@index([formId, submittedAt(sort: Desc)])
   @@index([patientId, submittedAt(sort: Desc)])
   @@index([clinicId, reviewedAt])
+  @@index([clinicId, submittedAt(sort: Desc)])
+  @@index([clinicId, patientId])
   @@map("form_responses")
 }
 

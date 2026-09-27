@@ -6,11 +6,12 @@ import { Description, Field, Label } from '@/components/catalyst/fieldset'
 import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { Text } from '@/components/catalyst/text'
+import { CopyLinkButton } from '@/components/forms/copy-link-button'
 import { ResponsePanel } from '@/components/forms/response-panel'
 import { useLang } from '@/i18n'
 import { formLinkUrl, useCreateFormLink, useForms, usePatientForms, useRevokeFormLink } from '@/lib/queries'
 import { FORM_LINK_TTL_DAYS, type FormLinkStatus, type Tone } from '@azza/shared'
-import { CheckIcon, ClipboardDocumentIcon, PaperAirplaneIcon } from '@heroicons/react/16/solid'
+import { PaperAirplaneIcon } from '@heroicons/react/16/solid'
 import { useState } from 'react'
 
 const linkTone: Record<FormLinkStatus, Tone> = {
@@ -111,7 +112,6 @@ function SendFormPanel({ patientId, onClose }: { patientId: string; onClose: () 
   const forms = useForms()
   const create = useCreateFormLink(patientId)
   const [formId, setFormId] = useState('')
-  const [copied, setCopied] = useState(false)
   const open = forms.data?.filter((f) => f.acceptingResponses) ?? []
   const url = create.data ? formLinkUrl(create.data.token) : null
 
@@ -166,17 +166,7 @@ function SendFormPanel({ patientId, onClose }: { patientId: string; onClose: () 
                 aria-label={t('forms.sharedLink')}
                 onFocus={(e) => e.currentTarget.select()}
               />
-              <Button
-                color="brand"
-                className="shrink-0 whitespace-nowrap"
-                onClick={async () => {
-                  await navigator.clipboard.writeText(url)
-                  setCopied(true)
-                }}
-              >
-                {copied ? <CheckIcon /> : <ClipboardDocumentIcon />}
-                {copied ? t('forms.copied') : t('forms.copy')}
-              </Button>
+              <CopyLinkButton url={url} />
             </div>
           </div>
         )}
