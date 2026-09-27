@@ -11,7 +11,7 @@ import { Textarea } from '@/components/catalyst/textarea'
 import { useLang } from '@/i18n'
 import { useCreatePrescription, usePrescriptions, useVoidPrescription } from '@/lib/queries'
 import { CreatePrescriptionSchema, type PatientDto, type PrescriptionDto, searchDrugs } from '@azza/shared'
-import { ExclamationTriangleIcon, PlusIcon, PrinterIcon, TrashIcon } from '@heroicons/react/16/solid'
+import { PlusIcon, PrinterIcon, TrashIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useState } from 'react'
 
@@ -184,13 +184,6 @@ function NewPrescriptionDialog({ patient, onClose }: { patient: PatientDto; onCl
         </>
       }
     >
-      {patient.allergies.length > 0 && (
-        <p className="mb-6 flex items-center gap-2 rounded-lg bg-red-50 px-3 py-2 text-sm/6 font-semibold text-red-800 ring-1 ring-red-200 dark:bg-red-950/40 dark:text-red-200 dark:ring-red-900">
-          <ExclamationTriangleIcon className="size-4 shrink-0" />
-          {t('record.allergyAlert', { list: patient.allergies.map((a) => a.substance).join(', ') })}
-        </p>
-      )}
-
       <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_16rem]">
         <FieldGroup>
           <Field>

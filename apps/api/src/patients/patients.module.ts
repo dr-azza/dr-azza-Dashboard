@@ -8,6 +8,8 @@ import { FollowUpController } from './follow-up.controller'
 import { FollowUpService } from './follow-up.service'
 import { HistoryController } from './history.controller'
 import { HistoryService } from './history.service'
+import { HistoryEntriesController } from './history-entries.controller'
+import { HistoryEntriesService } from './history-entries.service'
 import { NotesController } from './notes.controller'
 import { NotesService } from './notes.service'
 import { PatientScope } from './patient-scope.service'
@@ -28,6 +30,7 @@ import { PrescriptionsService } from './prescriptions.service'
     PaymentsController,
     AttachmentsController,
     NotesController,
+    HistoryEntriesController,
     PatientAppointmentsController,
     AppointmentsController,
   ],
@@ -40,6 +43,7 @@ import { PrescriptionsService } from './prescriptions.service'
     PaymentsService,
     AttachmentsService,
     NotesService,
+    HistoryEntriesService,
     AppointmentsService,
     ActivityService,
   ],

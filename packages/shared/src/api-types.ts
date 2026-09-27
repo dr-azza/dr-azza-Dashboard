@@ -87,7 +87,7 @@ export interface PatientDto extends PatientListItemDto {
   bloodGroup: BloodGroup | null
   gravida: number
   para: number
-  totals: { visits: number; prescriptions: number; files: number; paid: string }
+  totals: { visits: number; historyEntries: number; prescriptions: number; files: number; paid: string }
   /** The next scheduled appointment from now, if any. */
   nextAppointment: { id: string; type: AppointmentTypeCode; title: string | null; startsAt: string } | null
 }
@@ -214,7 +214,21 @@ export interface NoteDto {
   author: StaffRef | null
 }
 
-export type TimelineEventType = 'visit' | 'prescription' | 'payment' | 'file' | 'note' | 'pregnancy'
+export interface HistoryEntryDto {
+  id: string
+  /** YYYY-MM-DD */
+  recordedOn: string
+  title: string | null
+  /** Sanitized HTML, safe to render. */
+  bodyHtml: string
+  createdAt: string
+  author: StaffRef | null
+  /** Set once the entry has been changed after it was written. */
+  editedAt: string | null
+  editedBy: StaffRef | null
+}
+
+export type TimelineEventType = 'visit' | 'prescription' | 'payment' | 'file' | 'note' | 'pregnancy' | 'history'
 
 /**
  * One entry in a patient's activity feed. Clients build the visible title from `type` and

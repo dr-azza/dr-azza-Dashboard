@@ -180,6 +180,7 @@ export class PatientsService {
             visits: true,
             prescriptions: { where: { voidedAt: null } },
             attachments: { where: { deletedAt: null } },
+            historyEntries: { where: { deletedAt: null } },
           },
         },
       },
@@ -201,6 +202,7 @@ export class PatientsService {
       para: births,
       totals: {
         visits: p._count.visits,
+        historyEntries: p._count.historyEntries,
         prescriptions: p._count.prescriptions,
         files: p._count.attachments,
         paid: decimalString(paid._sum.amount) ?? '0.00',
@@ -240,7 +242,7 @@ export class PatientsService {
   async timeline(staff: AuthStaff, patientId: string, limit = 60): Promise<TimelineEventDto[]> {
     await this.scope.require(staff, patientId)
     const by = STAFF_REF_SELECT
-    const [visits, prescriptions, payments, files, notes, pregnancies] = await Promise.all([
+    const [visits, prescriptions, payments, files, notes, pregnancies, history] = await Promise.all([
       this.prisma.visit.findMany({
         where: { patientId },
         orderBy: { visitedAt: 'desc' },
@@ -272,9 +274,24 @@ export class PatientsService {
         include: { author: by },
       }),
       this.prisma.pregnancy.findMany({ where: { patientId }, orderBy: { createdAt: 'desc' }, take: limit }),
+      this.prisma.historyEntry.findMany({
+        where: { patientId, deletedAt: null },
+        orderBy: { createdAt: 'desc' },
+        take: limit,
+        select: { id: true, createdAt: true, title: true, bodyText: true, author: by },
+      }),
     ])
 
     const events: TimelineEventDto[] = [
+      ...history.map((h) => ({
+        type: 'history' as const,
+        id: h.id,
+        at: h.createdAt.toISOString(),
+        label: h.title,
+        detail: h.bodyText.length > 200 ? `${h.bodyText.slice(0, 200).trimEnd()}…` : h.bodyText,
+        code: null,
+        by: staffRef(h.author),
+      })),
       ...visits.map((v) => {
         const bp = v.systolic != null && v.diastolic != null ? `BP ${v.systolic}/${v.diastolic}` : null
         const weight = v.weightKg ? `${v.weightKg.toFixed(1)} kg` : null

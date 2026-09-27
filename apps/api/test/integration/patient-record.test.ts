@@ -394,6 +394,57 @@ describe.skipIf(!url)('patient record (integration)', () => {
     expect(capped.truncated).toBe(true)
   })
 
+  it('keeps free-text history entries as sanitized rich text', async () => {
+    const created = await call('POST', `/patients/${patientId}/history-entries`, {
+      recordedOn: '2026-09-20',
+      title: 'First visit',
+      bodyHtml:
+        '<h2>Complaint</h2><p onclick="steal()">Pelvic pain <strong>3 days</strong><script>alert(1)</script></p>' +
+        '<p style="color:red"><a href="javascript:alert(1)">bad</a> <a href="https://example.org">ref</a></p>' +
+        '<img src=x onerror=alert(1)><ul><li>G2 P1</li></ul>',
+    })
+    expect(created.statusCode).toBe(201)
+    const entry = created.json()
+    expect(entry.bodyHtml).toContain('<h2>Complaint</h2>')
+    expect(entry.bodyHtml).toContain('<strong>3 days</strong>')
+    expect(entry.bodyHtml).toContain('<ul><li>G2 P1</li></ul>')
+    for (const bad of ['script', 'onclick', 'onerror', '<img', 'javascript:', 'style=']) {
+      expect(entry.bodyHtml).not.toContain(bad)
+    }
+    expect(entry.bodyHtml).toContain('href="https://example.org" rel="noopener noreferrer nofollow" target="_blank"')
+    expect(entry.author.fullName).toBe('Test Doctor')
+    expect(entry.editedAt).toBeNull()
+
+    // Nothing readable left after sanitizing: rejected.
+    const empty = await call('POST', `/patients/${patientId}/history-entries`, {
+      recordedOn: '2026-09-21',
+      bodyHtml: '<p> </p><script>x</script>',
+    })
+    expect(empty.statusCode).toBe(400)
+
+    const second = await call('POST', `/patients/${patientId}/history-entries`, {
+      recordedOn: '2026-09-25',
+      bodyHtml: '<p>Follow-up: pain resolved.</p>',
+    })
+    const list = (await call('GET', `/patients/${patientId}/history-entries`)).json()
+    expect(list.map((e: { id: string }) => e.id)).toEqual([second.json().id, entry.id])
+
+    const edited = await call('PATCH', `/patients/${patientId}/history-entries/${entry.id}`, {
+      bodyHtml: '<p>Pelvic pain, 4 days.</p>',
+    })
+    expect(edited.json()).toMatchObject({ title: 'First visit', bodyHtml: '<p>Pelvic pain, 4 days.</p>' })
+    expect(edited.json().editedAt).not.toBeNull()
+
+    expect((await call('GET', `/patients/${patientId}`)).json().totals.historyEntries).toBe(2)
+    expect((await call('DELETE', `/patients/${patientId}/history-entries/${second.json().id}`)).statusCode).toBe(200)
+    expect((await call('GET', `/patients/${patientId}/history-entries`)).json()).toHaveLength(1)
+    expect(
+      (await call('PATCH', `/patients/${patientId}/history-entries/${second.json().id}`, { title: 'x' })).statusCode,
+    ).toBe(404)
+    // Kept in the database (medical record), only hidden.
+    expect(await db.historyEntry.count({ where: { id: second.json().id } })).toBe(1)
+  })
+
   it('keeps an activity log of every change on the patient, with views on request', async () => {
     const log = (await call('GET', `/patients/${patientId}/activity`)).json() as {
       items: { action: string; actor: { fullName: string } | null; appointment: { type: string } | null }[]
@@ -412,6 +463,9 @@ describe.skipIf(!url)('patient record (integration)', () => {
       'file.upload',
       'appointment.create',
       'appointment.update',
+      'history_entry.create',
+      'history_entry.update',
+      'history_entry.delete',
     ]) {
       expect(actions).toContain(expected)
     }

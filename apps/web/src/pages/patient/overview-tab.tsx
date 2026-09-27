@@ -11,6 +11,7 @@ import type { TimelineEventDto, TimelineEventType } from '@azza/shared'
 import {
   BanknotesIcon,
   BeakerIcon,
+  BookOpenIcon,
   ChatBubbleLeftEllipsisIcon,
   ClipboardDocumentCheckIcon,
   DocumentIcon,
@@ -26,6 +27,7 @@ const ICONS: Record<TimelineEventType, typeof HeartIcon> = {
   file: DocumentIcon,
   note: ChatBubbleLeftEllipsisIcon,
   pregnancy: HeartIcon,
+  history: BookOpenIcon,
 }
 
 /** Title in the viewer's language, built from the event's type and codes (the API sends no prose). */
@@ -42,6 +44,8 @@ function useEventTitle() {
         return `${t('record.overview.event.payment')} ${e.amount ? fmt.money(e.amount, e.currency) : ''} · ${t(`record.payments.methods.${e.code}`)}`
       case 'file':
         return `${e.label ?? t('record.overview.event.file')} · ${t(`record.files.kinds.${e.code}`)}`
+      case 'history':
+        return e.label ? `${t('record.overview.event.history')} · ${e.label}` : t('record.overview.event.history')
       default:
         return t(`record.overview.event.${e.type}`)
     }
