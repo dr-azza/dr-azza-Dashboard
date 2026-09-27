@@ -1,4 +1,3 @@
-/* global URL */
 // Bundles the compiled API (dist/serverless.js) into one CommonJS file for serverless hosts.
 // Why: Vercel's function runtime can't require() ES-module-only packages from CommonJS (it replaces
 // Node's module loader), and several dependencies are ES-module-only. Bundling converts them into
@@ -8,7 +7,7 @@
 // Kept external (they must resolve from node_modules at run time; Vercel traces them):
 // - native code, and packages that read files next to themselves (bundling would move __dirname);
 // - optional NestJS integrations this API doesn't use: Nest requires them only if installed.
-// CI starts the bundle with require(esm) off and answers a request, so a missing external or a new
+// CI runs the function (api/index.js) with require(esm) off and requires an answer, so a missing external or a new
 // ES-module-only dependency fails CI, not the live site.
 import { build } from 'esbuild'
 import { fileURLToPath } from 'node:url'
