@@ -7,7 +7,7 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 30,
-      "includeFiles": "apps/api/dist/**"
+      "includeFiles": "apps/api/dist/serverless.bundle.cjs*"
     }
   },
   "rewrites": [
@@ -85,5 +85,7 @@
       ]
     }
   ],
-  "regions": ["cle1"]
+  "regions": [
+    "cle1"
+  ]
 }

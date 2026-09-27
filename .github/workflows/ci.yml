@@ -71,4 +71,4 @@ jobs:
       - name: Serverless bundle loads without require(esm)
         run: |
           pnpm --filter @azza/api bundle:serverless
-          cd apps/api && node --no-experimental-require-module -e "require('./dist/serverless.bundle.cjs')"
+          node --no-experimental-require-module apps/api/scripts/check-serverless-bundle.cjs

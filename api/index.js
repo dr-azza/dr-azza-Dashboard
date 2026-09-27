@@ -4,6 +4,9 @@
 // is handed to Fastify as-is, so routing, validation, auth and audit work exactly as on a server.
 let ready
 
+// Stack traces in the logs map back to the source through the bundle's source map.
+process.setSourceMapsEnabled(true)
+
 export default async function handler(req, res) {
   ready ??= (async () => {
     // One-file CommonJS bundle of the API (apps/api/scripts/bundle-serverless.mjs): Vercel's runtime
