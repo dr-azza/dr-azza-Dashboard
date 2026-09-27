@@ -29,7 +29,6 @@ import {
   BellAlertIcon,
   CalendarDaysIcon,
   ClipboardDocumentListIcon,
-  InboxArrowDownIcon,
   Cog6ToothIcon,
   HeartIcon,
   HomeIcon,
@@ -38,6 +37,7 @@ import {
 import { UNAUTHORIZED_EVENT } from '@/lib/api'
 import { useFormResponsesSummary, useLogout, useMe } from '@/lib/queries'
 import { FEATURES } from '@/lib/features'
+import { SidebarGroup } from './sidebar-group'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
@@ -153,15 +153,21 @@ export function AppLayout() {
                 <CalendarDaysIcon />
                 <SidebarLabel>{t('nav.appointments')}</SidebarLabel>
               </SidebarItem>
-              <SidebarItem href="/forms" current={is('/forms')}>
-                <ClipboardDocumentListIcon />
-                <SidebarLabel>{t('nav.forms')}</SidebarLabel>
-              </SidebarItem>
-              <SidebarItem href="/responses" current={is('/responses')}>
-                <InboxArrowDownIcon />
-                <SidebarLabel>{t('nav.responses')}</SidebarLabel>
-                <CountBadge count={newResponses} />
-              </SidebarItem>
+              <SidebarGroup
+                id="forms"
+                icon={<ClipboardDocumentListIcon />}
+                label={t('nav.forms')}
+                badge={newResponses ? <CountBadge count={newResponses} /> : undefined}
+                items={[
+                  { href: '/forms', label: t('nav.allForms'), current: is('/forms') },
+                  {
+                    href: '/responses',
+                    label: t('nav.responses'),
+                    current: is('/responses'),
+                    badge: <CountBadge count={newResponses} />,
+                  },
+                ]}
+              />
               <SidebarItem href="/reminders" current={is('/reminders')}>
                 <BellAlertIcon />
                 <SidebarLabel>{t('nav.reminders')}</SidebarLabel>

@@ -290,6 +290,33 @@ describe.skipIf(!url)('forms (integration)', () => {
     expect((await call('GET', `/form-responses?formId=${formId}&cursor=not-a-uuid`)).statusCode).toBe(400)
   })
 
+  it('sends one patient as many forms as needed, the same one included, all usable at once', async () => {
+    const second = (
+      await call('POST', '/forms', {
+        title: 'Second',
+        language: 'en',
+        fields: [{ id: 'aaaa1', type: 'short_text', label: 'Note' }],
+      })
+    ).json()
+    const links = [
+      (await call('POST', `/patients/${patientId}/form-links`, { formId })).json(),
+      (await call('POST', `/patients/${patientId}/form-links`, { formId })).json(),
+      (await call('POST', `/patients/${patientId}/form-links`, { formId: second.id })).json(),
+    ]
+    expect(new Set(links.map((l) => l.token)).size).toBe(3)
+    for (const l of links) {
+      const page = (await call('GET', `/public/forms/${l.token}`, undefined, false)).json()
+      expect(page.state).toBe('open')
+      const answers = page.fields.some((f: { id: string }) => f.id === 'preg1') ? { preg1: 'no', new1: 'x' } : {}
+      expect(
+        (await call('POST', `/public/forms/${l.token}/responses`, { versionId: page.versionId, answers }, false))
+          .statusCode,
+      ).toBe(201)
+    }
+    const mine = (await call('GET', `/patients/${patientId}/forms`)).json()
+    for (const l of links) expect(mine.links.find((x: { id: string }) => x.id === l.id).status).toBe('submitted')
+  })
+
   it('closes, revokes and rotates links, and never leaks another clinic’s forms', async () => {
     const link = (await call('POST', `/patients/${patientId}/form-links`, { formId })).json()
     await call('POST', `/patients/${patientId}/form-links/${link.id}/revoke`)
@@ -308,5 +335,22 @@ describe.skipIf(!url)('forms (integration)', () => {
     const otherForm = await db.form.findUnique({ where: { publicToken: otherClinicFormToken } })
     expect((await call('GET', `/forms/${otherForm!.id}`)).statusCode).toBe(404)
     expect((await call('GET', '/public/forms/not-a-real-token-at-all', undefined, false)).statusCode).toBe(404)
+  })
+
+  it('limits submissions per link, without one link using up another link’s allowance', async () => {
+    const make = async () => (await call('POST', '/forms', { title: 'Flood', language: 'en', fields: [] })).json()
+    const [a, b] = [await make(), await make()]
+    const send = (token: string) =>
+      call(
+        'POST',
+        `/public/forms/${token}/responses`,
+        { versionId: '00000000-0000-7000-8000-000000000000', answers: {} },
+        false,
+      )
+    const codes = []
+    for (let i = 0; i < 11; i++) codes.push((await send(a.publicToken)).statusCode)
+    expect(codes.slice(0, 10).every((c) => c !== 429)).toBe(true)
+    expect(codes[10]).toBe(429)
+    expect((await send(b.publicToken)).statusCode).not.toBe(429)
   })
 })

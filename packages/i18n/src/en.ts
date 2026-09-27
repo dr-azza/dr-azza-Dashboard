@@ -14,6 +14,7 @@ export const en = {
     system: 'System',
   },
   nav: {
+    allForms: 'All forms',
     responses: 'Responses',
     overview: 'Overview',
     patients: 'Patients',
@@ -369,10 +370,11 @@ export const en = {
       sendHint:
         'Creates a personal link for this patient. Send it to her any way you like: her answers go straight to this record. The link works once and expires in {{days}} days.',
       pickForm: 'Form',
+      pickAnother: 'Send another form (or the same one again)',
       pickFormPlaceholder: 'Choose a form…',
       noForms: 'No open forms yet. Create one in Forms first.',
       create: 'Create link',
-      linkReady: 'Link ready. Copy it now: for privacy it is shown only once.',
+      linkReady: 'Links ready. Copy them now: for privacy each link is shown only once.',
       links: 'Sent links',
       noLinks: 'No forms sent to this patient yet.',
       responses: 'Responses',
