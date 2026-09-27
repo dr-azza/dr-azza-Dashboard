@@ -1,4 +1,4 @@
-/* global process, console, fetch */
+/* global process, console, fetch, URL, setTimeout */
 // CI check: the Vercel function (api/index.js, which loads the serverless bundle) must start and
 // answer a request with require(esm) turned off, as Vercel's runtime behaves. It runs the real
 // function file behind a plain HTTP server, the way Vercel calls it.
