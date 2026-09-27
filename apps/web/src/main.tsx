@@ -5,6 +5,7 @@ import '@/styles/tailwind.css'
 import { RouteError } from '@/components/app/route-error'
 import { ApiError } from '@/lib/api'
 import { FEATURES } from '@/lib/features'
+import { EnvBanner } from '@/components/app/env-banner'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -112,6 +113,7 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <RouterProvider router={router} />
+      <EnvBanner />
     </QueryClientProvider>
   </StrictMode>,
 )

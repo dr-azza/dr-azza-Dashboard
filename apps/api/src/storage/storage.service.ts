@@ -1,20 +1,24 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { createReadStream } from 'node:fs'
 import { mkdir, rm, stat, writeFile } from 'node:fs/promises'
 import path from 'node:path'
+import { Readable } from 'node:stream'
 import { ENV, type Env } from '../config/env'
+import { PrismaService } from '../prisma/prisma.service'
 
-/**
- * File storage behind a small interface. Development writes to a local folder; production will
- * swap in an S3-compatible bucket (private, encrypted) with the same methods.
- */
-@Injectable()
-export class StorageService {
-  private readonly root: string
+/** What every storage backend provides. Keys are opaque paths like "attachments/<uuid>". */
+interface StorageDriver {
+  /** Never overwrites: putting an existing key fails. */
+  put(key: string, bytes: Buffer): Promise<void>
+  exists(key: string): Promise<boolean>
+  /** NotFoundException when the key has no bytes. */
+  read(key: string): Promise<Readable>
+  remove(key: string): Promise<void>
+}
 
-  constructor(@Inject(ENV) env: Env) {
-    this.root = path.resolve(env.STORAGE_DIR)
-  }
+/** A local folder: development. */
+class LocalStorage implements StorageDriver {
+  constructor(private readonly root: string) {}
 
   /** Resolves a key inside the storage root, refusing anything that would escape it. */
   private resolve(key: string) {
@@ -29,19 +33,77 @@ export class StorageService {
     await writeFile(full, bytes, { flag: 'wx' })
   }
 
-  async exists(key: string) {
+  exists(key: string) {
     return stat(this.resolve(key)).then(
       () => true,
       () => false,
     )
   }
 
-  read(key: string) {
+  async read(key: string) {
+    if (!(await this.exists(key))) throw new NotFoundException('File not found')
     return createReadStream(this.resolve(key))
   }
 
   async remove(key: string) {
     await rm(this.resolve(key), { force: true })
+  }
+}
+
+/** Rows in `stored_files`: hosts whose disk is wiped on restart (free test deployments). */
+class DatabaseStorage implements StorageDriver {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async put(key: string, bytes: Buffer) {
+    // create, not upsert: an existing key is never overwritten. A Buffer is already a Uint8Array
+    // (Prisma's type only differs in the backing-buffer generic), so it is passed without a copy.
+    await this.prisma.storedFile.create({ data: { key, bytes: bytes as Uint8Array<ArrayBuffer> } })
+  }
+
+  async exists(key: string) {
+    return (await this.prisma.storedFile.count({ where: { key } })) > 0
+  }
+
+  async read(key: string) {
+    const file = await this.prisma.storedFile.findUnique({ where: { key }, select: { bytes: true } })
+    if (!file) throw new NotFoundException('File not found')
+    // A view over the same memory, not a second copy of the file.
+    return Readable.from(Buffer.from(file.bytes.buffer, file.bytes.byteOffset, file.bytes.byteLength))
+  }
+
+  async remove(key: string) {
+    await this.prisma.storedFile.deleteMany({ where: { key } })
+  }
+}
+
+/**
+ * File storage, backed by the driver chosen with STORAGE_DRIVER: a local folder (development) or
+ * the database (free test deployments). Production will add an S3-compatible bucket as another
+ * driver with the same four methods.
+ */
+@Injectable()
+export class StorageService implements StorageDriver {
+  private readonly driver: StorageDriver
+
+  constructor(@Inject(ENV) env: Env, prisma: PrismaService) {
+    this.driver =
+      env.STORAGE_DRIVER === 'database' ? new DatabaseStorage(prisma) : new LocalStorage(path.resolve(env.STORAGE_DIR))
+  }
+
+  put(key: string, bytes: Buffer) {
+    return this.driver.put(key, bytes)
+  }
+
+  exists(key: string) {
+    return this.driver.exists(key)
+  }
+
+  read(key: string) {
+    return this.driver.read(key)
+  }
+
+  remove(key: string) {
+    return this.driver.remove(key)
   }
 }
 

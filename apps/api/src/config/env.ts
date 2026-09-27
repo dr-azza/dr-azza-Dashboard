@@ -19,6 +19,13 @@ const EnvSchema = z.object({
   /** Local folder for uploaded files in development. Production will use object storage. */
   STORAGE_DIR: z.string().default('./storage'),
   /**
+   * Where uploaded files live: a local folder, or the database (for hosts whose disk is wiped on
+   * restart, such as free test deployments).
+   */
+  STORAGE_DRIVER: z.enum(['local', 'database']).default('local'),
+  /** Built web app to serve from the same origin (production); unset in development (Vite serves it). */
+  WEB_DIST: z.string().optional(),
+  /**
    * Proxies in front of the API whose X-Forwarded-For may be trusted (0 = none). Rate limits
    * key on the client IP, so trusting a header nobody sets lets clients pick their own IP.
    */

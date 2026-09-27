@@ -118,7 +118,7 @@ export class AttachmentsService {
     const row = await this.prisma.attachment.findFirst({ where: { id: attachmentId, patientId, deletedAt: null } })
     if (!row) throw new NotFoundException('File not found')
     return {
-      stream: this.storage.read(row.storageKey),
+      stream: await this.storage.read(row.storageKey),
       mimeType: row.mimeType,
       fileName: row.fileName,
       sizeBytes: row.sizeBytes,
