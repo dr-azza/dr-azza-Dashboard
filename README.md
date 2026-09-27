@@ -100,7 +100,8 @@ bilingual _Test environment_ strip; use test data only.
 - **One-file API bundle:** Vercel's function runtime replaces Node's module loader and can't
   `require()` ES-module-only packages, several of which the API uses. The build bundles the
   compiled API into `apps/api/dist/serverless.bundle.cjs` with esbuild
-  (`apps/api/scripts/bundle-serverless.mjs`), and CI checks the bundle loads with that feature off.
+  (`apps/api/scripts/bundle-serverless.mjs`). CI serves the real function file (`api/index.js`) over
+  HTTP with that feature off and requires it to start, answer and shut down.
 - **Build** (`scripts/vercel-build.sh`): builds web and API, then applies migrations and seeds the
   demo data **once** (later deploys keep what testers created).
 - **Deploys** are made from a machine that has the licensed Catalyst kit, with the Vercel CLI
