@@ -107,13 +107,18 @@ export function FormsTab({ patientId }: { patientId: string }) {
   )
 }
 
+/**
+ * Makes personal links, as many as needed: pick a form, create its link, copy it, then send the
+ * next one (another form, or the same form again). Links made here stay listed until the panel
+ * closes, because each is shown only once.
+ */
 function SendFormPanel({ patientId, onClose }: { patientId: string; onClose: () => void }) {
   const { t } = useLang()
   const forms = useForms()
   const create = useCreateFormLink(patientId)
   const [formId, setFormId] = useState('')
+  const [created, setCreated] = useState<{ id: string; title: string; url: string }[]>([])
   const open = forms.data?.filter((f) => f.acceptingResponses) ?? []
-  const url = create.data ? formLinkUrl(create.data.token) : null
 
   return (
     <SidePanel
@@ -123,26 +128,32 @@ function SendFormPanel({ patientId, onClose }: { patientId: string; onClose: () 
       title={t('forms.patientTab.sendTitle')}
       description={t('forms.patientTab.sendHint', { days: FORM_LINK_TTL_DAYS })}
       actions={
-        url ? (
-          <Button color="brand" onClick={onClose}>
-            {t('common.done')}
+        <>
+          <Button plain onClick={onClose}>
+            {created.length ? t('common.done') : t('record.cancel')}
           </Button>
-        ) : (
-          <>
-            <Button plain onClick={onClose}>
-              {t('record.cancel')}
-            </Button>
-            <Button color="brand" disabled={!formId || create.isPending} onClick={() => create.mutate(formId)}>
-              {t('forms.patientTab.create')}
-            </Button>
-          </>
-        )
+          <Button
+            color="brand"
+            disabled={!formId || create.isPending}
+            onClick={() =>
+              // Errors (e.g. the form was closed meanwhile) show below via create.error.
+              create.mutate(formId, {
+                onSuccess: (link) => {
+                  setCreated((list) => [{ id: link.id, title: link.form.title, url: formLinkUrl(link.token) }, ...list])
+                  setFormId('')
+                },
+              })
+            }
+          >
+            {t('forms.patientTab.create')}
+          </Button>
+        </>
       }
     >
       <div className="space-y-6">
         <Field>
-          <Label>{t('forms.patientTab.pickForm')}</Label>
-          <Select value={formId} disabled={!!url} onChange={(e) => setFormId(e.target.value)}>
+          <Label>{created.length ? t('forms.patientTab.pickAnother') : t('forms.patientTab.pickForm')}</Label>
+          <Select value={formId} onChange={(e) => setFormId(e.target.value)}>
             <option value="">{t('forms.patientTab.pickFormPlaceholder')}</option>
             {open.map((f) => (
               <option key={f.id} value={f.id}>
@@ -152,22 +163,31 @@ function SendFormPanel({ patientId, onClose }: { patientId: string; onClose: () 
           </Select>
           {forms.isSuccess && open.length === 0 && <Description>{t('forms.patientTab.noForms')}</Description>}
         </Field>
-        {url && (
+        {created.length > 0 && (
           <div className="rounded-xl bg-emerald-50 p-4 ring-1 ring-emerald-200 dark:bg-emerald-950/30 dark:ring-emerald-900">
             <p className="text-sm/6 font-medium text-emerald-900 dark:text-emerald-200">
               {t('forms.patientTab.linkReady')}
             </p>
-            <div className="mt-3 flex items-center gap-2">
-              <Input
-                className="min-w-0 flex-1"
-                readOnly
-                value={url}
-                dir="ltr"
-                aria-label={t('forms.sharedLink')}
-                onFocus={(e) => e.currentTarget.select()}
-              />
-              <CopyLinkButton url={url} />
-            </div>
+            <ul className="mt-3 space-y-3">
+              {created.map((c) => (
+                <li key={c.id}>
+                  <p className="mb-1 text-xs/5 font-medium text-emerald-900 dark:text-emerald-200">
+                    <bdi>{c.title}</bdi>
+                  </p>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      className="min-w-0 flex-1"
+                      readOnly
+                      value={c.url}
+                      dir="ltr"
+                      aria-label={c.title}
+                      onFocus={(e) => e.currentTarget.select()}
+                    />
+                    <CopyLinkButton url={c.url} />
+                  </div>
+                </li>
+              ))}
+            </ul>
           </div>
         )}
         <RequestError error={create.error ?? forms.error} />

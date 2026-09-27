@@ -29,7 +29,6 @@ import {
   BellAlertIcon,
   CalendarDaysIcon,
   ClipboardDocumentListIcon,
-  InboxArrowDownIcon,
   Cog6ToothIcon,
   HeartIcon,
   HomeIcon,
@@ -38,18 +37,10 @@ import {
 import { UNAUTHORIZED_EVENT } from '@/lib/api'
 import { useFormResponsesSummary, useLogout, useMe } from '@/lib/queries'
 import { FEATURES } from '@/lib/features'
+import { CountBadge, SidebarGroup } from './sidebar-group'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router'
-
-function CountBadge({ count }: { count: number }) {
-  if (!count) return null
-  return (
-    <span className="ms-auto min-w-5 rounded-full bg-brand-600 px-1.5 text-center text-xs/5 font-semibold text-white tabular-nums">
-      {count}
-    </span>
-  )
-}
 
 /** Staff dashboard shell. Everything inside requires a signed-in staff member. */
 export function AppLayout() {
@@ -153,15 +144,15 @@ export function AppLayout() {
                 <CalendarDaysIcon />
                 <SidebarLabel>{t('nav.appointments')}</SidebarLabel>
               </SidebarItem>
-              <SidebarItem href="/forms" current={is('/forms')}>
-                <ClipboardDocumentListIcon />
-                <SidebarLabel>{t('nav.forms')}</SidebarLabel>
-              </SidebarItem>
-              <SidebarItem href="/responses" current={is('/responses')}>
-                <InboxArrowDownIcon />
-                <SidebarLabel>{t('nav.responses')}</SidebarLabel>
-                <CountBadge count={newResponses} />
-              </SidebarItem>
+              <SidebarGroup
+                id="forms"
+                icon={<ClipboardDocumentListIcon />}
+                label={t('nav.forms')}
+                items={[
+                  { href: '/forms', label: t('nav.allForms'), current: is('/forms') },
+                  { href: '/responses', label: t('nav.responses'), current: is('/responses'), count: newResponses },
+                ]}
+              />
               <SidebarItem href="/reminders" current={is('/reminders')}>
                 <BellAlertIcon />
                 <SidebarLabel>{t('nav.reminders')}</SidebarLabel>
