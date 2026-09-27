@@ -389,6 +389,8 @@ export interface ResponseFilters {
   status?: 'new' | 'reviewed'
   /** false: only responses not tied to a patient yet. */
   linked?: boolean
+  /** Only responses from the last N days. */
+  days?: number
 }
 
 /** Responses across the clinic (or one form), newest first. */
@@ -401,6 +403,7 @@ export function useResponses(filters: ResponseFilters) {
       if (filters.formId) params.set('formId', filters.formId)
       if (filters.status) params.set('status', filters.status)
       if (filters.linked !== undefined) params.set('linked', String(filters.linked))
+      if (filters.days) params.set('days', String(filters.days))
       if (pageParam) params.set('cursor', pageParam)
       return api<Page<FormResponseListItemDto>>(`/form-responses?${params}`)
     },

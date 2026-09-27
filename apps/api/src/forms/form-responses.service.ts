@@ -19,6 +19,8 @@ import type { Prisma } from '../generated/prisma/client'
 import { PatientScope } from '../patients/patient-scope.service'
 import { PrismaService } from '../prisma/prisma.service'
 
+const daysAgo = (days: number) => new Date(Date.now() - days * 24 * 60 * 60 * 1000)
+
 const LIST_INCLUDE = {
   form: { select: { id: true, title: true } },
   version: { select: { version: true } },
@@ -78,9 +80,11 @@ export class FormResponsesService {
     const rows = await this.prisma.formResponse.findMany({
       where: {
         clinicId: staff.clinicId,
-        ...(query.formId && { formId: query.formId }),
+        // Across forms, only forms still in use (as the counts and badge); one form: always its responses.
+        ...(query.formId ? { formId: query.formId } : { form: { archivedAt: null } }),
         ...(query.status && { reviewedAt: query.status === 'new' ? null : { not: null } }),
         ...(query.linked && { patientId: query.linked === 'true' ? { not: null } : null }),
+        ...(query.days && { submittedAt: { gte: daysAgo(query.days) } }),
       },
       orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
       take: query.limit + 1,
@@ -98,7 +102,7 @@ export class FormResponsesService {
       this.prisma.formResponse.count({ where: { ...inUse, reviewedAt: null } }),
       this.prisma.formResponse.count({ where: { ...inUse, patientId: null } }),
       this.prisma.formResponse.count({
-        where: { ...inUse, submittedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+        where: { ...inUse, submittedAt: { gte: daysAgo(7) } },
       }),
     ])
     return { newCount, unlinkedCount, lastWeekCount }

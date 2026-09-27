@@ -153,7 +153,7 @@ describe.skipIf(!url)('forms (integration)', () => {
     )
     expect(ok.statusCode).toBe(201)
 
-    const list = (await call('GET', `/forms/${formId}/responses`)).json()
+    const list = (await call('GET', `/form-responses?formId=${formId}`)).json()
     expect(list.items).toHaveLength(1)
     expect(list.items[0]).toMatchObject({ matchedBy: 'PHONE', respondentPhone: phone, patient: { id: patientId } })
     const detail = (await call('GET', `/form-responses/${list.items[0].id}`)).json()
@@ -167,7 +167,7 @@ describe.skipIf(!url)('forms (integration)', () => {
       { versionId: v1, answers: { preg1: 'no' }, respondent: { name: 'Someone', phone: '+442079460958' } },
       false,
     )
-    const unmatched = (await call('GET', `/forms/${formId}/responses?status=new`)).json().items[0]
+    const unmatched = (await call('GET', `/form-responses?formId=${formId}&status=new`)).json().items[0]
     expect(unmatched.patient).toBeNull()
     const linked = await call('PATCH', `/form-responses/${unmatched.id}`, { patientId, reviewed: true })
     expect(linked.json()).toMatchObject({ matchedBy: 'STAFF', patient: { id: patientId } })
@@ -188,23 +188,42 @@ describe.skipIf(!url)('forms (integration)', () => {
       false,
     )
     expect(late.statusCode).toBe(201)
-    const newest = (await call('GET', `/forms/${formId}/responses`)).json().items[0]
+    const newest = (await call('GET', `/form-responses?formId=${formId}`)).json().items[0]
     expect(newest.version).toBe(1)
   })
 
-  it('lists responses across forms with form and linked filters, and summarizes them', async () => {
-    const unlinked = (await call('GET', '/form-responses?linked=false')).json().items
+  it('lists responses across forms with filters that agree with the summary counts', async () => {
+    const all = (await call('GET', '/form-responses')).json().items as { patient: unknown; form: { id: string } }[]
+    const unlinked = (await call('GET', '/form-responses?linked=false')).json().items as { patient: unknown }[]
+    const linked = (await call('GET', '/form-responses?linked=true')).json().items as { patient: unknown }[]
     expect(unlinked.length).toBeGreaterThan(0)
-    expect(unlinked.every((r: { patient: unknown }) => r.patient === null)).toBe(true)
-    const forForm = (await call('GET', `/form-responses?formId=${formId}`)).json().items
-    expect(forForm.every((r: { form: { id: string } }) => r.form.id === formId)).toBe(true)
+    expect(linked.length).toBeGreaterThan(0)
+    expect(unlinked.every((r) => r.patient === null)).toBe(true)
+    expect(linked.every((r) => r.patient !== null)).toBe(true)
+    expect(unlinked.length + linked.length).toBe(all.length)
+
+    const lastWeek = (await call('GET', '/form-responses?days=7')).json().items
     const summary = (await call('GET', '/form-responses/summary')).json()
-    expect(summary).toMatchObject({
-      newCount: expect.any(Number),
-      unlinkedCount: expect.any(Number),
-      lastWeekCount: expect.any(Number),
-    })
-    expect(summary.lastWeekCount).toBeGreaterThanOrEqual(forForm.length)
+    expect(summary.unlinkedCount).toBe(unlinked.length)
+    expect(summary.lastWeekCount).toBe(lastWeek.length)
+    expect(summary.newCount).toBe((await call('GET', '/form-responses?status=new')).json().items.length)
+
+    // Archiving a form takes its responses out of both the counts and the clinic-wide lists,
+    // but they stay reachable on the form itself.
+    const extra = (await call('POST', '/forms', { title: 'Archived later', language: 'en', fields: [] })).json()
+    const page = (await call('GET', `/public/forms/${extra.publicToken}`, undefined, false)).json()
+    await call(
+      'POST',
+      `/public/forms/${extra.publicToken}/responses`,
+      { versionId: page.versionId, answers: {}, respondent: { name: 'A', phone: '+442079460999' } },
+      false,
+    )
+    expect((await call('GET', '/form-responses/summary')).json().unlinkedCount).toBe(summary.unlinkedCount + 1)
+    await call('PATCH', `/forms/${extra.id}`, { archived: true })
+    expect((await call('GET', '/form-responses/summary')).json().unlinkedCount).toBe(summary.unlinkedCount)
+    expect((await call('GET', '/form-responses?linked=false')).json().items).toHaveLength(unlinked.length)
+    expect((await call('GET', `/form-responses?formId=${extra.id}`)).json().items).toHaveLength(1)
+    expect((await call('GET', `/forms/${formId}/responses`)).statusCode).toBe(404)
   })
 
   it('sends a personal link that greets the patient, fills her record, and works once', async () => {
@@ -268,7 +287,7 @@ describe.skipIf(!url)('forms (integration)', () => {
       false,
     )
     expect(typed.statusCode).toBe(400)
-    expect((await call('GET', `/forms/${formId}/responses?cursor=not-a-uuid`)).statusCode).toBe(400)
+    expect((await call('GET', `/form-responses?formId=${formId}&cursor=not-a-uuid`)).statusCode).toBe(400)
   })
 
   it('closes, revokes and rotates links, and never leaks another clinic’s forms', async () => {

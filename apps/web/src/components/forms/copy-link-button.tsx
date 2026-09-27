@@ -31,11 +31,14 @@ export function CopyLinkButton({
   url,
   compact = false,
   disabled = false,
+  title,
   className,
 }: {
   url: string
   compact?: boolean
   disabled?: boolean
+  /** Explains a disabled button (shown on hover). */
+  title?: string
   className?: string
 }) {
   const { t } = useLang()
@@ -46,35 +49,24 @@ export function CopyLinkButton({
     return () => clearTimeout(timer)
   }, [copied])
 
-  const onClick = async (event: React.MouseEvent) => {
-    event.preventDefault()
-    event.stopPropagation()
-    if (await copyText(url)) setCopied(true)
-  }
-  const label = copied ? t('forms.copied') : t('forms.copy')
-  const icon = copied ? <CheckIcon /> : <LinkIcon />
-
-  return compact ? (
-    <Button
-      outline
-      disabled={disabled}
-      onClick={onClick}
-      aria-live="polite"
-      className={clsx('relative z-10 shrink-0 whitespace-nowrap', className)}
-    >
-      {icon}
-      {label}
-    </Button>
-  ) : (
-    <Button
-      color="brand"
-      disabled={disabled}
-      onClick={onClick}
-      aria-live="polite"
-      className={clsx('shrink-0 whitespace-nowrap', className)}
-    >
-      {icon}
-      {label}
-    </Button>
+  const look = compact ? ({ outline: true } as const) : ({ color: 'brand' } as const)
+  return (
+    // The wrapper carries the hover hint, which a disabled button can't show itself.
+    <span title={title} className={clsx('inline-flex shrink-0', compact && 'relative z-10', className)}>
+      <Button
+        {...look}
+        disabled={disabled}
+        aria-live="polite"
+        className="whitespace-nowrap"
+        onClick={async (event: React.MouseEvent) => {
+          event.preventDefault()
+          event.stopPropagation()
+          if (await copyText(url)) setCopied(true)
+        }}
+      >
+        {copied ? <CheckIcon /> : <LinkIcon />}
+        {copied ? t('forms.copied') : t('forms.copy')}
+      </Button>
+    </span>
   )
 }

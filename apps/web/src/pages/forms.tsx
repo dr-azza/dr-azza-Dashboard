@@ -119,8 +119,15 @@ export function FormsPage() {
                   </ToneBadge>
                 </TableCell>
                 <TableCell className="text-end">
-                  {/* Archived forms have no working link. */}
-                  {!f.archived && <CopyLinkButton compact url={formLinkUrl(f.publicToken)} />}
+                  {/* Archived forms have no link; closed ones have one that only says "closed". */}
+                  {!f.archived && (
+                    <CopyLinkButton
+                      compact
+                      url={formLinkUrl(f.publicToken)}
+                      disabled={!f.acceptingResponses}
+                      title={f.acceptingResponses ? undefined : t('forms.closedNoCopy')}
+                    />
+                  )}
                 </TableCell>
               </TableRow>
             ))}

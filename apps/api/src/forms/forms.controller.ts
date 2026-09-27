@@ -37,10 +37,7 @@ class SubmitFormDto extends createZodDto(SubmitFormSchema) {}
 @ApiTags('forms')
 @Controller('forms')
 export class FormsController {
-  constructor(
-    private readonly forms: FormsService,
-    private readonly responses: FormResponsesService,
-  ) {}
+  constructor(private readonly forms: FormsService) {}
 
   @Get()
   list(@CurrentStaff() staff: AuthStaff, @Query() query: ListFormsQueryDto) {
@@ -69,16 +66,6 @@ export class FormsController {
   @Audited('form.link.rotate', 'form')
   rotateLink(@CurrentStaff() staff: AuthStaff, @Param('formId', UuidPipe) formId: string) {
     return this.forms.rotateLink(staff, formId)
-  }
-
-  @Get(':formId/responses')
-  @Audited('form.response.list', 'form_response')
-  listResponses(
-    @CurrentStaff() staff: AuthStaff,
-    @Param('formId', UuidPipe) formId: string,
-    @Query() query: ListResponsesQueryDto,
-  ) {
-    return this.responses.list(staff, { ...query, formId })
   }
 }
 

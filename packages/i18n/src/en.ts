@@ -160,6 +160,7 @@ export const en = {
     allForms: 'All forms',
     filterForm: 'Form',
     unlinkedOnly: 'Not linked only',
+    lastWeekOnly: 'Last 7 days',
     stats: {
       new: 'New, not reviewed',
       unlinked: 'Not linked to a patient',
@@ -315,6 +316,7 @@ export const en = {
       'Anyone with this link can fill the form. Patients enter their name and phone first; the answers are matched to her record by phone.',
     copy: 'Copy link',
     copied: 'Copied',
+    closedNoCopy: 'This form is closed. Open it to accept answers before sharing the link.',
     open: 'Open',
     acceptingLabel: 'Accepting responses',
     acceptingHint: 'Turn off to close the form. The link will say the form is closed.',
