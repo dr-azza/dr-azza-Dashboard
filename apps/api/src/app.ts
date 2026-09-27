@@ -80,8 +80,8 @@ export async function createApp() {
  */
 async function serveWebApp(app: NestFastifyApplication, root: string) {
   if (!existsSync(path.join(root, 'index.html'))) throw new Error(`WEB_DIST has no index.html: ${root}`)
-  // Loaded only when the API serves the web app itself: serverless hosts serve it from their CDN,
-  // and this plugin's dependencies can't be loaded by every serverless runtime.
+  // Loaded only when the API serves the web app itself (serverless hosts serve it from their CDN),
+  // so hosts that don't need it never load it.
   const { default: fastifyStatic } = await import('@fastify/static')
   const fastify = app.getHttpAdapter().getInstance()
   await app.register(fastifyStatic, {
