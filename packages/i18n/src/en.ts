@@ -14,6 +14,7 @@ export const en = {
     system: 'System',
   },
   nav: {
+    responses: 'Responses',
     overview: 'Overview',
     patients: 'Patients',
     pregnancy: 'Pregnancy follow-up',
@@ -152,6 +153,20 @@ export const en = {
     notFound: 'Patient not found.',
     backToPatients: 'Back to patients',
     noPregnancy: 'No active pregnancy on file. Visits and forms for this patient appear below.',
+  },
+  responsesPage: {
+    title: 'Responses',
+    subtitle: 'Answers from every form in one place. Review them and link them to patients.',
+    allForms: 'All forms',
+    filterForm: 'Form',
+    unlinkedOnly: 'Not linked only',
+    stats: {
+      new: 'New, not reviewed',
+      unlinked: 'Not linked to a patient',
+      week: 'Received in the last 7 days',
+    },
+    form: 'Form',
+    empty: 'No responses match these filters.',
   },
   forms: {
     title: 'Forms',

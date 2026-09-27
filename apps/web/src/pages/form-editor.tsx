@@ -30,12 +30,13 @@ import {
   replaceField,
   TYPE_MENU,
 } from '@/components/forms/builder-model'
+import { CopyLinkButton } from '@/components/forms/copy-link-button'
 import { FormRenderer } from '@/components/forms/form-renderer'
 import { QuestionEditor } from '@/components/forms/question-editor'
 import { ResponsePanel } from '@/components/forms/response-panel'
 import { useLang } from '@/i18n'
 import { ApiError } from '@/lib/api'
-import { formLinkUrl, useForm, useFormResponses, useUpdateForm } from '@/lib/queries'
+import { formLinkUrl, useForm, useResponses, useUpdateForm } from '@/lib/queries'
 import { FORM_LIMITS, type FormDto, type FormField, type FormLanguage, UpdateFormSchema } from '@azza/shared'
 import {
   closestCenter,
@@ -54,7 +55,6 @@ import {
   ArrowTopRightOnSquareIcon,
   CheckIcon,
   ChevronLeftIcon,
-  ClipboardDocumentIcon,
   EyeIcon,
   LinkIcon,
   PlusIcon,
@@ -513,7 +513,6 @@ function SharePanel({
 }) {
   const { t } = useLang()
   const { save, rotate } = useUpdateForm(form.id)
-  const [copied, setCopied] = useState(false)
   const [confirmRotate, setConfirmRotate] = useState(false)
   const url = formLinkUrl(form.publicToken)
 
@@ -537,19 +536,7 @@ function SharePanel({
               aria-label={t('forms.sharedLink')}
               onFocus={(e) => e.currentTarget.select()}
             />
-            <Button
-              color="brand"
-              className="shrink-0 whitespace-nowrap"
-              disabled={form.archived}
-              onClick={async () => {
-                await navigator.clipboard.writeText(url)
-                setCopied(true)
-                setTimeout(() => setCopied(false), 2000)
-              }}
-            >
-              {copied ? <CheckIcon /> : <ClipboardDocumentIcon />}
-              {copied ? t('forms.copied') : t('forms.copy')}
-            </Button>
+            <CopyLinkButton url={url} disabled={form.archived} />
           </div>
           <Button plain href={url} target="_blank" className="mt-2">
             <ArrowTopRightOnSquareIcon />
@@ -627,7 +614,7 @@ function ResponsesTab({ formId }: { formId: string }) {
   const fmt = useFormat()
   const [filter, setFilter] = useState<(typeof FILTERS)[number]>('new')
   const [openId, setOpenId] = useState<string | null>(null)
-  const responses = useFormResponses(formId, filter === 'all' ? undefined : filter)
+  const responses = useResponses({ formId, status: filter === 'all' ? undefined : filter })
   const items = responses.data?.pages.flatMap((p) => p.items) ?? []
 
   return (

@@ -389,6 +389,9 @@ export type UpdateFormResponseInput = z.input<typeof UpdateFormResponseSchema>
 
 export const ListFormResponsesQuerySchema = paginationQuery.extend({
   status: z.enum(['new', 'reviewed']).optional(),
+  formId: z.uuid().optional(),
+  /** "false": responses not tied to any patient yet (shared-link answers with no phone match). */
+  linked: z.enum(['true', 'false']).optional(),
   cursor: z.uuid().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(50),
 })

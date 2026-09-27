@@ -9,7 +9,8 @@ import { Radio, RadioField, RadioGroup } from '@/components/catalyst/radio'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
 import { useLang } from '@/i18n'
-import { useCreateForm, useForms } from '@/lib/queries'
+import { CopyLinkButton } from '@/components/forms/copy-link-button'
+import { formLinkUrl, useCreateForm, useForms } from '@/lib/queries'
 import type { FormLanguage } from '@azza/shared'
 import { ClipboardDocumentListIcon, PlusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
@@ -86,6 +87,9 @@ export function FormsPage() {
               <TableHeader className="max-sm:hidden">{t('forms.language')}</TableHeader>
               <TableHeader>{t('forms.tabs.responses')}</TableHeader>
               <TableHeader className="max-md:hidden">{t('forms.responses.status')}</TableHeader>
+              <TableHeader className="text-end">
+                <span className="sr-only">{t('forms.sharedLink')}</span>
+              </TableHeader>
             </TableRow>
           </TableHead>
           <TableBody>
@@ -113,6 +117,10 @@ export function FormsPage() {
                   <ToneBadge tone={f.acceptingResponses ? 'ok' : 'neutral'}>
                     {f.acceptingResponses ? t('forms.accepting') : t('forms.closed')}
                   </ToneBadge>
+                </TableCell>
+                <TableCell className="text-end">
+                  {/* Archived forms have no working link. */}
+                  {!f.archived && <CopyLinkButton compact url={formLinkUrl(f.publicToken)} />}
                 </TableCell>
               </TableRow>
             ))}

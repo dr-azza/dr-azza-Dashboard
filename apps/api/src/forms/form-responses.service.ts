@@ -74,15 +74,13 @@ export class FormResponsesService {
   ) {}
 
   /** Responses across the clinic (or one form), newest first. */
-  async list(
-    staff: AuthStaff,
-    query: ListFormResponsesQuery & { formId?: string },
-  ): Promise<Page<FormResponseListItemDto>> {
+  async list(staff: AuthStaff, query: ListFormResponsesQuery): Promise<Page<FormResponseListItemDto>> {
     const rows = await this.prisma.formResponse.findMany({
       where: {
         clinicId: staff.clinicId,
         ...(query.formId && { formId: query.formId }),
         ...(query.status && { reviewedAt: query.status === 'new' ? null : { not: null } }),
+        ...(query.linked && { patientId: query.linked === 'true' ? { not: null } : null }),
       },
       orderBy: [{ submittedAt: 'desc' }, { id: 'desc' }],
       take: query.limit + 1,
@@ -93,12 +91,17 @@ export class FormResponsesService {
     return { items: page.map(toListDto), nextCursor: rows.length > query.limit ? page[page.length - 1].id : null }
   }
 
-  /** Unreviewed responses on forms still in use: the Forms badge in the sidebar. */
+  /** Counts for the sidebar badge and the Responses overview (forms still in use only). */
   async summary(staff: AuthStaff) {
-    const newCount = await this.prisma.formResponse.count({
-      where: { clinicId: staff.clinicId, reviewedAt: null, form: { archivedAt: null } },
-    })
-    return { newCount }
+    const inUse = { clinicId: staff.clinicId, form: { archivedAt: null } }
+    const [newCount, unlinkedCount, lastWeekCount] = await Promise.all([
+      this.prisma.formResponse.count({ where: { ...inUse, reviewedAt: null } }),
+      this.prisma.formResponse.count({ where: { ...inUse, patientId: null } }),
+      this.prisma.formResponse.count({
+        where: { ...inUse, submittedAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } },
+      }),
+    ])
+    return { newCount, unlinkedCount, lastWeekCount }
   }
 
   async get(staff: AuthStaff, responseId: string): Promise<FormResponseDto> {

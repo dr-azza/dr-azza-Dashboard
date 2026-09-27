@@ -16,6 +16,7 @@ export const ar: Messages = {
     system: 'حسب الجهاز',
   },
   nav: {
+    responses: 'الإجابات',
     overview: 'نظرة عامة',
     patients: 'المريضات',
     pregnancy: 'متابعة الحمل',
@@ -154,6 +155,20 @@ export const ar: Messages = {
     notFound: 'لم يتم العثور على المريضة.',
     backToPatients: 'العودة إلى المريضات',
     noPregnancy: 'لا يوجد حمل نشط في الملف. تظهر زيارات ونماذج هذه المريضة بالأسفل.',
+  },
+  responsesPage: {
+    title: 'الإجابات',
+    subtitle: 'إجابات كل النماذج في مكان واحد. راجعها واربطها بالمريضات.',
+    allForms: 'كل النماذج',
+    filterForm: 'النموذج',
+    unlinkedOnly: 'غير المرتبطة فقط',
+    stats: {
+      new: 'جديدة لم تُراجع',
+      unlinked: 'غير مرتبطة بمريضة',
+      week: 'وصلت خلال آخر ٧ أيام',
+    },
+    form: 'النموذج',
+    empty: 'لا توجد إجابات تطابق هذه الفلاتر.',
   },
   forms: {
     title: 'النماذج',

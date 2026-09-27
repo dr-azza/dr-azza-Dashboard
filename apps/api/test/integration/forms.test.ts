@@ -192,6 +192,21 @@ describe.skipIf(!url)('forms (integration)', () => {
     expect(newest.version).toBe(1)
   })
 
+  it('lists responses across forms with form and linked filters, and summarizes them', async () => {
+    const unlinked = (await call('GET', '/form-responses?linked=false')).json().items
+    expect(unlinked.length).toBeGreaterThan(0)
+    expect(unlinked.every((r: { patient: unknown }) => r.patient === null)).toBe(true)
+    const forForm = (await call('GET', `/form-responses?formId=${formId}`)).json().items
+    expect(forForm.every((r: { form: { id: string } }) => r.form.id === formId)).toBe(true)
+    const summary = (await call('GET', '/form-responses/summary')).json()
+    expect(summary).toMatchObject({
+      newCount: expect.any(Number),
+      unlinkedCount: expect.any(Number),
+      lastWeekCount: expect.any(Number),
+    })
+    expect(summary.lastWeekCount).toBeGreaterThanOrEqual(forForm.length)
+  })
+
   it('sends a personal link that greets the patient, fills her record, and works once', async () => {
     const created = await call('POST', `/patients/${patientId}/form-links`, { formId })
     expect(created.statusCode).toBe(201)
