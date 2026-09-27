@@ -1,8 +1,10 @@
+/* global process, require, console */
 // CI check: the serverless bundle must start and answer a request with require(esm) turned off,
 // which is how Vercel's runtime behaves. Run: node --no-experimental-require-module <this file>
 // No database is needed: /auth/me without a session is answered by the auth guard (401).
 process.env.DATABASE_URL ??= 'postgresql://check:check@127.0.0.1:1/check'
 process.env.NODE_ENV ??= 'production'
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- loading it with require() is the check
 const { createApp } = require('../dist/serverless.bundle.cjs')
 
 createApp()

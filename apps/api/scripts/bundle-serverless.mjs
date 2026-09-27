@@ -1,3 +1,4 @@
+/* global URL */
 // Bundles the compiled API (dist/serverless.js) into one CommonJS file for serverless hosts.
 // Why: Vercel's function runtime can't require() ES-module-only packages from CommonJS (it replaces
 // Node's module loader), and several dependencies are ES-module-only. Bundling converts them into

@@ -85,7 +85,5 @@
       ]
     }
   ],
-  "regions": [
-    "cle1"
-  ]
+  "regions": ["cle1"]
 }
