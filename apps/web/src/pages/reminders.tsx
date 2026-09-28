@@ -107,8 +107,8 @@ export function RemindersPage() {
               key={s.key}
               label={t(`reminders.stats.${s.key}`)}
               value={s.value}
-              tone={s.tone}
-              tinted={s.value > 0}
+              tone={s.value > 0 ? s.tone : 'neutral'}
+              tinted
             />
           ))}
         </div>
