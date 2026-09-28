@@ -15,3 +15,4 @@ apps/web/src/components/catalyst/
 
 # Vercel CLI link (local only)
 .vercel
+*.tsbuildinfo
