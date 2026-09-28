@@ -13,7 +13,7 @@ import { CreateTaskSchema, type TaskDto, type UpdateTaskInput } from '@azza/shar
 import { LinkIcon, TrashIcon, XMarkIcon } from '@heroicons/react/16/solid'
 import { useState } from 'react'
 
-type PatientRef = NonNullable<TaskDto['patient']>
+type PatientRef = Omit<NonNullable<TaskDto['patient']>, 'archived'>
 
 /** Due-time shortcuts, the common cases in one tap. */
 const QUICK = {

@@ -146,7 +146,7 @@ export class PatientsService {
             phone: input.phone,
             dateOfBirth: fromIsoDayOrNull(input.dateOfBirth),
             caseTypeId: caseType.id,
-            visitMode: input.visitMode ?? 'IN_CLINIC',
+            visitMode: input.visitMode,
             consentAt: new Date(),
           },
           select: { id: true },

@@ -14,7 +14,7 @@ import { useState } from 'react'
 export function RemindersTab({ patient }: { patient: PatientDto }) {
   const { t } = useLang()
   const open = useTasks({ status: 'open', patientId: patient.id })
-  const done = useTasks({ status: 'done', patientId: patient.id })
+  const done = useTasks({ status: 'done', patientId: patient.id, limit: 20 })
   const [adding, setAdding] = useState(false)
   const [editing, setEditing] = useState<TaskDto | null>(null)
   const ref = {
@@ -42,7 +42,7 @@ export function RemindersTab({ patient }: { patient: PatientDto }) {
       {!!done.data?.items.length && (
         <Card title={t('reminders.tabs.done')} bodyClassName="pb-1">
           <ul className="divide-y divide-zinc-950/5 border-t border-zinc-950/5 dark:divide-white/5 dark:border-white/5">
-            {done.data.items.slice(0, 20).map((task) => (
+            {done.data.items.map((task) => (
               <ReminderRow key={task.id} task={task} bucket={null} onOpen={setEditing} showPatient={false} />
             ))}
           </ul>

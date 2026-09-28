@@ -143,25 +143,59 @@ describe.skipIf(!url)('reminders (integration)', () => {
     expect(done.statusCode).toBe(200)
     expect(done.json()).toMatchObject({ completedBy: { id: nurseId } })
     expect(done.json().completedAt).not.toBeNull()
-    // Completing again keeps the first completion.
-    const again = await call('POST', `/reminders/${taskId}/complete`, undefined, owner)
-    expect(again.json().completedBy.id).toBe(nurseId)
+    // Completing again (a stale screen) is refused, and the first completion stands.
+    expect((await call('POST', `/reminders/${taskId}/complete`, undefined, owner)).statusCode).toBe(409)
+    expect((await db.task.findUniqueOrThrow({ where: { id: taskId } })).completedById).toBe(nurseId)
+    // Two at once: exactly one wins.
+    const race = await db.task.create({
+      data: {
+        clinicId: (await db.task.findUniqueOrThrow({ where: { id: taskId } })).clinicId,
+        title: 'Race',
+        dueAt: new Date(),
+      },
+    })
+    const results = await Promise.all([
+      call('POST', `/reminders/${race.id}/complete`, undefined, owner),
+      call('POST', `/reminders/${race.id}/complete`, undefined, nurse),
+    ])
+    expect(results.map((r) => r.statusCode).sort()).toEqual([200, 409])
 
     const open = (await call('GET', '/reminders', undefined, owner)).json()
     expect(open.items.some((t: { id: string }) => t.id === taskId)).toBe(false)
     const finished = (await call('GET', '/reminders?status=done', undefined, owner)).json()
-    expect(finished.items.map((t: { id: string }) => t.id)).toEqual([taskId])
+    expect(finished.items.map((t: { id: string }) => t.id)).toContain(taskId)
 
     const reopened = await call('POST', `/reminders/${taskId}/reopen`, undefined, owner)
     expect(reopened.json()).toMatchObject({ completedAt: null, completedBy: null })
+    expect((await call('POST', `/reminders/${taskId}/reopen`, undefined, owner)).statusCode).toBe(409)
   })
 
-  it("puts reminder changes in the patient's activity log", async () => {
-    const log = (await call('GET', `/patients/${patientId}/activity`, undefined, owner)).json()
-    const actions = log.items.map((a: { action: string }) => a.action)
-    for (const action of ['reminder.create', 'reminder.update', 'reminder.complete', 'reminder.reopen']) {
-      expect(actions).toContain(action)
+  it("puts reminder changes in the patient's activity log, including moving it off her", async () => {
+    const actions = async () =>
+      (await call('GET', `/patients/${patientId}/activity`, undefined, owner))
+        .json()
+        .items.map((a: { action: string }) => a.action) as string[]
+    const before = await actions()
+    for (const action of ['reminder.create', 'reminder.complete', 'reminder.reopen']) {
+      expect(before).toContain(action)
     }
+    // One reopen only: the refused repeat wasn't logged.
+    expect(before.filter((a) => a === 'reminder.reopen')).toHaveLength(1)
+    expect(before.filter((a) => a === 'reminder.complete')).toHaveLength(1)
+
+    const updatesBefore = before.filter((a) => a === 'reminder.update').length
+    const moved = await call('PATCH', `/reminders/${taskId}`, { patientId: null }, owner)
+    expect(moved.json().patient).toBeNull()
+    expect((await actions()).filter((a) => a === 'reminder.update')).toHaveLength(updatesBefore + 1)
+  })
+
+  it('marks reminders about an archived patient, so the app does not link to her', async () => {
+    const task = (await call('POST', '/reminders', { title: 'Follow up', dueAt: inHours(1), patientId }, owner)).json()
+    expect(task.patient.archived).toBe(false)
+    await db.patient.update({ where: { id: patientId }, data: { archivedAt: new Date() } })
+    const list = (await call('GET', '/reminders', undefined, owner)).json()
+    expect(list.items.find((t: { id: string }) => t.id === task.id).patient).toMatchObject({ archived: true })
+    await db.patient.update({ where: { id: patientId }, data: { archivedAt: null } })
   })
 
   it('lets only the author or an owner delete', async () => {

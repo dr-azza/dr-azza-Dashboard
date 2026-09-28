@@ -6,6 +6,7 @@ import { useSetTaskDone } from '@/lib/queries'
 import { type TaskBucket, type TaskDto, taskBucket } from '@azza/shared'
 import { CheckIcon, UserIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
+import { useEffect, useState } from 'react'
 
 export const BUCKETS: TaskBucket[] = ['overdue', 'today', 'tomorrow', 'week', 'later']
 
@@ -18,13 +19,17 @@ export function groupTasks(tasks: TaskDto[], now = new Date()) {
   return groups
 }
 
-/** "14:30" for today and tomorrow, "Thu 14:30" this week, a full date further out or overdue. */
+/**
+ * "14:30" today, "Tomorrow 14:30", "Thu 14:30" this week, a full date further out or overdue.
+ * Only today's is bare, so a list without day headings (the home card) is never ambiguous.
+ */
 function useDueLabel() {
-  const { formatDate } = useLang()
+  const { t, formatDate } = useLang()
   const fmt = useFormat()
   return (task: TaskDto, bucket: TaskBucket | null) => {
     const due = new Date(task.dueAt)
-    if (bucket === 'today' || bucket === 'tomorrow') return fmt.time(task.dueAt)
+    if (bucket === 'today') return fmt.time(task.dueAt)
+    if (bucket === 'tomorrow') return `${t('reminders.buckets.tomorrow')} ${fmt.time(task.dueAt)}`
     if (bucket === 'week') return formatDate(due, { weekday: 'short', hour: '2-digit', minute: '2-digit' })
     return fmt.dayTime(task.dueAt)
   }
@@ -108,14 +113,21 @@ export function ReminderRow({
           </span>
         </span>
       </button>
-      {showPatient && task.patient && (
-        <Link
-          href={`/patients/${task.patient.id}?tab=reminders`}
-          className="mt-0.5 max-w-[40%] shrink-0 truncate rounded-full bg-brand-50 px-2.5 text-xs/6 font-medium text-brand-800 hover:bg-brand-100 dark:bg-brand-950/50 dark:text-brand-200"
-        >
-          {(lang === 'ar' && task.patient.fullNameAr) || task.patient.fullName}
-        </Link>
-      )}
+      {showPatient &&
+        task.patient &&
+        (task.patient.archived ? (
+          // An archived patient has no record page to open.
+          <span className="mt-0.5 max-w-[40%] shrink-0 truncate rounded-full bg-zinc-100 px-2.5 text-xs/6 font-medium text-zinc-500 dark:bg-white/5">
+            {(lang === 'ar' && task.patient.fullNameAr) || task.patient.fullName}
+          </span>
+        ) : (
+          <Link
+            href={`/patients/${task.patient.id}?tab=reminders`}
+            className="mt-0.5 max-w-[40%] shrink-0 truncate rounded-full bg-brand-50 px-2.5 text-xs/6 font-medium text-brand-800 hover:bg-brand-100 dark:bg-brand-950/50 dark:text-brand-200"
+          >
+            {(lang === 'ar' && task.patient.fullNameAr) || task.patient.fullName}
+          </Link>
+        ))}
     </li>
   )
 }
@@ -180,4 +192,14 @@ export function dueNowCount(tasks: TaskDto[] | undefined, now = new Date()) {
     const b = taskBucket(new Date(task.dueAt), now)
     return b === 'overdue' || b === 'today'
   }).length
+}
+
+/** The current time, updated every minute: for counts that depend on the clock. */
+export function useMinuteClock() {
+  const [now, setNow] = useState(() => new Date())
+  useEffect(() => {
+    const timer = setInterval(() => setNow(new Date()), 60_000)
+    return () => clearInterval(timer)
+  }, [])
+  return now
 }

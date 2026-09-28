@@ -88,9 +88,6 @@ export interface AttentionItem {
   action: AttentionAction
 }
 
-export type DeliveryStatus = 'queued' | 'sent' | 'failed'
-export type Channel = 'whatsapp' | 'sms'
-
 export interface FormTemplate {
   id: string
   name: L

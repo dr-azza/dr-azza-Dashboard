@@ -1,5 +1,5 @@
 import { CreateTaskSchema, ListTasksQuerySchema, UpdateTaskSchema } from '@azza/shared'
-import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common'
+import { Body, Controller, Delete, Get, HttpCode, Ip, Param, Patch, Post, Query } from '@nestjs/common'
 import { ApiTags } from '@nestjs/swagger'
 import { createZodDto } from 'nestjs-zod'
 import { Audited } from '../audit/audited'
@@ -31,8 +31,13 @@ export class TasksController {
 
   @Patch(':itemId')
   @Audited('reminder.update', 'reminder')
-  update(@CurrentStaff() staff: AuthStaff, @Param('itemId', UuidPipe) id: string, @Body() body: UpdateTaskDto) {
-    return this.tasks.update(staff, id, body)
+  update(
+    @CurrentStaff() staff: AuthStaff,
+    @Param('itemId', UuidPipe) id: string,
+    @Body() body: UpdateTaskDto,
+    @Ip() ip: string,
+  ) {
+    return this.tasks.update(staff, id, body, ip)
   }
 
   @Post(':itemId/complete')

@@ -22,7 +22,7 @@ import { SidebarLayout } from '@/components/catalyst/sidebar-layout'
 import { ThemeSwitcher, ThemeToggleButton } from '@/components/app/theme-switcher'
 import { AzzahAppIcon } from '@/components/brand/logo'
 import { initials as initialsOf } from '@/components/app/ui'
-import { dueNowCount } from '@/components/reminders/reminder-list'
+import { dueNowCount, useMinuteClock } from '@/components/reminders/reminder-list'
 import { useLang } from '@/i18n'
 import { ArrowRightStartOnRectangleIcon, ChevronUpIcon, LanguageIcon } from '@heroicons/react/16/solid'
 import {
@@ -66,9 +66,11 @@ export function AppLayout() {
   const is = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 
   const newResponses = useFormResponsesSummary(!!me.data).data?.newCount ?? 0
-  // Mine that are overdue or due today; refreshed every minute so the badge follows the clock.
-  const myReminders = useTasks({ status: 'open', assignee: 'me' }, { refetchInterval: 60_000, enabled: !!me.data })
-  const dueReminders = dueNowCount(myReminders.data?.items)
+  // Mine that are overdue or due today. The list is refetched now and then (colleagues may add
+  // some); the count is recomputed every minute so it follows the clock without a request.
+  const myReminders = useTasks({ status: 'open', assignee: 'me' }, { refetchInterval: 5 * 60_000, enabled: !!me.data })
+  const now = useMinuteClock()
+  const dueReminders = dueNowCount(myReminders.data?.items, now)
 
   const userMenu = (anchor: 'top start' | 'bottom end') => (
     <DropdownMenu className="min-w-64" anchor={anchor}>

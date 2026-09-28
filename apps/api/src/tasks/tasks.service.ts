@@ -1,5 +1,12 @@
 import type { CreateTaskInput, ListTasksQuery, TaskDto, TaskListDto, UpdateTaskInput } from '@azza/shared'
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common'
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common'
+import { AuditService } from '../audit/audit.service'
 import type { AuthStaff } from '../auth/auth.types'
 import { STAFF_REF_SELECT, staffRef } from '../common/format'
 import type { Prisma } from '../generated/prisma/client'
@@ -7,7 +14,7 @@ import { PatientScope } from '../patients/patient-scope.service'
 import { PrismaService } from '../prisma/prisma.service'
 
 const INCLUDE = {
-  patient: { select: { id: true, fullName: true, fullNameAr: true, fileNumber: true } },
+  patient: { select: { id: true, fullName: true, fullNameAr: true, fileNumber: true, archivedAt: true } },
   assignee: STAFF_REF_SELECT,
   createdBy: STAFF_REF_SELECT,
   completedBy: STAFF_REF_SELECT,
@@ -22,7 +29,15 @@ const toDto = (t: Row): TaskDto => ({
   dueAt: t.dueAt.toISOString(),
   priority: t.priority,
   assignee: staffRef(t.assignee),
-  patient: t.patient,
+  patient: t.patient
+    ? {
+        id: t.patient.id,
+        fullName: t.patient.fullName,
+        fullNameAr: t.patient.fullNameAr,
+        fileNumber: t.patient.fileNumber,
+        archived: !!t.patient.archivedAt,
+      }
+    : null,
   createdBy: staffRef(t.createdBy),
   completedAt: t.completedAt?.toISOString() ?? null,
   completedBy: staffRef(t.completedBy),
@@ -35,6 +50,7 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly scope: PatientScope,
+    private readonly audit: AuditService,
   ) {}
 
   /** Open reminders soonest first (overdue on top), or done ones most recent first. */
@@ -76,8 +92,12 @@ export class TasksService {
     return toDto(row)
   }
 
-  async update(staff: AuthStaff, taskId: string, input: UpdateTaskInput) {
-    await this.require(staff, taskId)
+  /**
+   * The audit entry follows the reminder's patient after the change; moving it off a patient
+   * also records the change on the patient it left, so her activity log isn't missing a step.
+   */
+  async update(staff: AuthStaff, taskId: string, input: UpdateTaskInput, ip?: string) {
+    const before = await this.require(staff, taskId)
     if (input.assigneeId) await this.requireAssignee(staff, input.assigneeId)
     if (input.patientId) await this.scope.require(staff, input.patientId)
     const row = await this.prisma.task.update({
@@ -92,28 +112,41 @@ export class TasksService {
       },
       include: INCLUDE,
     })
+    if (before.patientId && before.patientId !== row.patientId) {
+      await this.audit.log({
+        clinicId: staff.clinicId,
+        actorId: staff.id,
+        action: 'reminder.update',
+        entity: 'reminder',
+        entityId: taskId,
+        patientId: before.patientId,
+        ip,
+      })
+    }
     return toDto(row)
   }
 
-  /** Done by whoever marks it; marking an already-done reminder keeps the original completion. */
-  async complete(staff: AuthStaff, taskId: string) {
-    const task = await this.require(staff, taskId)
-    const row = await this.prisma.task.update({
-      where: { id: taskId },
-      data: task.completedAt ? {} : { completedAt: new Date(), completedById: staff.id },
-      include: INCLUDE,
-    })
-    return toDto(row)
+  /**
+   * Done by whoever marks it. Conditional on the current state, so two people ticking it at the
+   * same moment can't overwrite each other, and a repeat (stale screen) is refused rather than
+   * logged as a second completion.
+   */
+  complete(staff: AuthStaff, taskId: string) {
+    return this.setDone(staff, taskId, true)
   }
 
-  async reopen(staff: AuthStaff, taskId: string) {
+  reopen(staff: AuthStaff, taskId: string) {
+    return this.setDone(staff, taskId, false)
+  }
+
+  private async setDone(staff: AuthStaff, taskId: string, done: boolean) {
     await this.require(staff, taskId)
-    const row = await this.prisma.task.update({
-      where: { id: taskId },
-      data: { completedAt: null, completedById: null },
-      include: INCLUDE,
+    const { count } = await this.prisma.task.updateMany({
+      where: { id: taskId, completedAt: done ? null : { not: null } },
+      data: done ? { completedAt: new Date(), completedById: staff.id } : { completedAt: null, completedById: null },
     })
-    return toDto(row)
+    if (!count) throw new ConflictException(done ? 'This reminder is already done' : 'This reminder is already open')
+    return toDto(await this.prisma.task.findUniqueOrThrow({ where: { id: taskId }, include: INCLUDE }))
   }
 
   async remove(staff: AuthStaff, taskId: string) {
@@ -128,7 +161,7 @@ export class TasksService {
   private async require(staff: AuthStaff, taskId: string) {
     const task = await this.prisma.task.findFirst({
       where: { id: taskId, clinicId: staff.clinicId },
-      select: { id: true, createdById: true, completedAt: true },
+      select: { id: true, createdById: true, patientId: true },
     })
     if (!task) throw new NotFoundException('Reminder not found')
     return task

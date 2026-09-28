@@ -512,6 +512,7 @@ export interface TaskFilters {
   /** A staff id, "me" or "unassigned"; omitted for everyone's. */
   assignee?: string
   patientId?: string
+  limit?: number
 }
 
 export const useTasks = (filters: TaskFilters, options: { refetchInterval?: number; enabled?: boolean } = {}) =>
@@ -522,17 +523,21 @@ export const useTasks = (filters: TaskFilters, options: { refetchInterval?: numb
       const params = new URLSearchParams({ status: filters.status })
       if (filters.assignee) params.set('assignee', filters.assignee)
       if (filters.patientId) params.set('patientId', filters.patientId)
+      if (filters.limit) params.set('limit', String(filters.limit))
       return api<TaskListDto>(`/reminders?${params}`)
     },
     refetchInterval: options.refetchInterval,
   })
 
-/** After any change: every reminder list, and activity logs (the reminder may have moved between patients). */
+/**
+ * After any change: every reminder list, and activity logs (the reminder may have moved between
+ * patients). Also after a failure, e.g. someone else already completed it: the lists catch up.
+ */
 function useTaskMutation<TInput>(fn: (input: TInput) => Promise<TaskDto>) {
   const qc = useQueryClient()
   return useMutation({
     mutationFn: fn,
-    onSuccess: () =>
+    onSettled: () =>
       Promise.all([
         qc.invalidateQueries({ queryKey: ['reminders'] }),
         qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'patient' && q.queryKey[2] === 'activity' }),

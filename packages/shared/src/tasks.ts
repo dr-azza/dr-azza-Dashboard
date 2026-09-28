@@ -49,7 +49,8 @@ export interface TaskDto {
   dueAt: string
   priority: TaskPriorityCode
   assignee: StaffRef | null
-  patient: { id: string; fullName: string; fullNameAr: string | null; fileNumber: string } | null
+  /** `archived` patients have no record page to link to. */
+  patient: { id: string; fullName: string; fullNameAr: string | null; fileNumber: string; archived: boolean } | null
   createdBy: StaffRef | null
   completedAt: string | null
   completedBy: StaffRef | null

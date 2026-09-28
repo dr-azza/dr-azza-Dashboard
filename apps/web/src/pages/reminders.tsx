@@ -1,4 +1,5 @@
 import { RequestError } from '@/components/app/form'
+import { StatCard } from '@/components/app/ui'
 import { Button } from '@/components/catalyst/button'
 import { Heading } from '@/components/catalyst/heading'
 import { Select } from '@/components/catalyst/select'
@@ -100,37 +101,17 @@ export function RemindersPage() {
       </div>
 
       {tab === 'open' && list.isSuccess && (
-        <dl className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           {stats.map((s) => (
-            <div
+            <StatCard
               key={s.key}
-              className={clsx(
-                'rounded-xl px-4 py-3 ring-1',
-                s.tone === 'danger' && s.value > 0
-                  ? 'bg-red-50 ring-red-200 dark:bg-red-950/40 dark:ring-red-900'
-                  : s.tone === 'brand' && s.value > 0
-                    ? 'bg-brand-50 ring-brand-200 dark:bg-brand-950/40 dark:ring-brand-900'
-                    : 'bg-white ring-zinc-950/8 dark:bg-zinc-900 dark:ring-white/10',
-              )}
-            >
-              <dt className="text-xs/5 font-medium text-zinc-600 sm:text-sm/6 dark:text-zinc-400">
-                {t(`reminders.stats.${s.key}`)}
-              </dt>
-              <dd
-                className={clsx(
-                  'mt-1 font-display text-2xl/8 font-semibold tabular-nums sm:text-3xl/9',
-                  s.tone === 'danger' && s.value > 0
-                    ? 'text-red-700 dark:text-red-400'
-                    : s.tone === 'brand' && s.value > 0
-                      ? 'text-brand-700 dark:text-brand-300'
-                      : 'text-zinc-950 dark:text-white',
-                )}
-              >
-                {s.value}
-              </dd>
-            </div>
+              label={t(`reminders.stats.${s.key}`)}
+              value={s.value}
+              tone={s.tone}
+              tinted={s.value > 0}
+            />
           ))}
-        </dl>
+        </div>
       )}
 
       <RequestError error={list.error} />
