@@ -50,7 +50,7 @@ export function PrescriptionPrintPage() {
       <PrescriptionSheet
         patient={p}
         prescription={r}
-        className="mx-auto shadow-sm print:min-h-0 print:w-full print:max-w-none print:p-0 print:shadow-none"
+        className="mx-auto max-w-full shadow-sm print:min-h-0 print:w-full print:max-w-none print:p-0 print:shadow-none"
       />
     </div>
   )
