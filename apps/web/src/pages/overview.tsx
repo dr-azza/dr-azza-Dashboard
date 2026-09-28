@@ -5,12 +5,16 @@ import { Input, InputGroup } from '@/components/catalyst/input'
 import { Link } from '@/components/catalyst/link'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/catalyst/table'
 import { Text } from '@/components/catalyst/text'
-import { attention, findPatient, formResponses, patients, reminders, schedule } from '@/data/mock'
+import { attention, findPatient, formResponses, patients, schedule } from '@/data/mock'
 import { useLang } from '@/i18n'
 import { FEATURES } from '@/lib/features'
-import { pregnancyInfo } from '@azza/shared'
+import { useTasks } from '@/lib/queries'
+import { ReminderRow } from '@/components/reminders/reminder-list'
+import { ReminderPanel } from '@/components/reminders/reminder-panel'
+import { RequestError } from '@/components/app/form'
+import { pregnancyInfo, type TaskDto, taskBucket } from '@azza/shared'
 import { MagnifyingGlassIcon, PlusIcon } from '@heroicons/react/16/solid'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 
 export function OverviewPage() {
@@ -223,34 +227,41 @@ export function OverviewPage() {
           ))}
         </Card>
 
-        <Card
-          title={t('overview.reminders')}
-          action={
-            <Link
-              href="/reminders"
-              className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300"
-            >
-              {t('common.manage')}
-            </Link>
-          }
-          bodyClassName="px-5 pb-2"
-        >
-          {reminders.slice(0, 4).map((r, i) => (
-            <ListRow key={i}>
-              <div className="min-w-0 flex-1">
-                <div className="truncate text-sm/6 font-medium text-zinc-950 dark:text-white">
-                  {l(r.message)}: {l(r.to)}
-                </div>
-                <div className="truncate text-sm/5 text-zinc-500 dark:text-zinc-400">
-                  {l(r.when)} · {t(`forms.${r.channel}`)}
-                  {r.detail && ` · ${l(r.detail)}`}
-                </div>
-              </div>
-              <StatusBadge kind="delivery" status={r.status} />
-            </ListRow>
-          ))}
-        </Card>
+        <MyRemindersCard />
       </div>
     </div>
+  )
+}
+
+/** My next reminders, overdue first; tick them off right here. */
+function MyRemindersCard() {
+  const { t } = useLang()
+  const tasks = useTasks({ status: 'open', assignee: 'me' })
+  const [editing, setEditing] = useState<TaskDto | null>(null)
+  const items = tasks.data?.items.slice(0, 5) ?? []
+  const now = new Date()
+
+  return (
+    <Card
+      title={t('overview.reminders')}
+      action={
+        <Link
+          href="/reminders"
+          className="text-sm/6 font-medium text-brand-700 hover:text-brand-900 dark:text-brand-300"
+        >
+          {t('reminders.viewAll')}
+        </Link>
+      }
+      bodyClassName="pb-2"
+    >
+      <RequestError error={tasks.error} className="mx-5" />
+      {tasks.isSuccess && items.length === 0 && <Text className="px-5 py-3">{t('overview.noReminders')}</Text>}
+      <ul className="divide-y divide-zinc-950/5 border-t border-zinc-950/5 dark:divide-white/5 dark:border-white/5">
+        {items.map((task) => (
+          <ReminderRow key={task.id} task={task} bucket={taskBucket(new Date(task.dueAt), now)} onOpen={setEditing} />
+        ))}
+      </ul>
+      {editing && <ReminderPanel key={editing.id} open task={editing} onClose={() => setEditing(null)} />}
+    </Card>
   )
 }

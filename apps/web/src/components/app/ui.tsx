@@ -1,6 +1,6 @@
 import { Avatar } from '@/components/catalyst/avatar'
 import { Badge } from '@/components/catalyst/badge'
-import type { AppointmentStatus, DeliveryStatus, PatientStatus, ResponseStatus, Tone } from '@azza/shared'
+import type { AppointmentStatus, PatientStatus, ResponseStatus, Tone } from '@azza/shared'
 import { useLang } from '@/i18n'
 import clsx from 'clsx'
 import type React from 'react'
@@ -21,7 +21,6 @@ export function ToneBadge({ tone, children }: { tone: Tone; children: React.Reac
 
 const patientTone: Record<PatientStatus, Tone> = { ok: 'ok', flagged: 'danger', overdue: 'warn', awaiting: 'info' }
 const appointmentTone: Record<AppointmentStatus, Tone> = { done: 'ok', checkedIn: 'info', upcoming: 'neutral' }
-const deliveryTone: Record<DeliveryStatus, Tone> = { queued: 'neutral', sent: 'ok', failed: 'danger' }
 const responseTone: Record<ResponseStatus, Tone> = {
   flagged: 'danger',
   new: 'info',
@@ -32,7 +31,6 @@ const responseTone: Record<ResponseStatus, Tone> = {
 type StatusProps =
   | { kind: 'patient'; status: PatientStatus }
   | { kind: 'appointment'; status: AppointmentStatus }
-  | { kind: 'delivery'; status: DeliveryStatus }
   | { kind: 'response'; status: ResponseStatus }
 
 export function StatusBadge(props: StatusProps) {
@@ -42,9 +40,7 @@ export function StatusBadge(props: StatusProps) {
       ? patientTone[props.status]
       : props.kind === 'appointment'
         ? appointmentTone[props.status]
-        : props.kind === 'delivery'
-          ? deliveryTone[props.status]
-          : responseTone[props.status]
+        : responseTone[props.status]
   return <ToneBadge tone={tone}>{t(`status.${props.status}`)}</ToneBadge>
 }
 
@@ -97,33 +93,51 @@ export function StatCard({
   value,
   note,
   tone = 'neutral',
+  tinted = false,
 }: {
   label: string
   value: React.ReactNode
-  note: string
+  note?: string
   tone?: 'neutral' | 'danger' | 'brand'
+  /** Colour the whole card (and the value) by its tone, to make it stand out. */
+  tinted?: boolean
 }) {
   return (
-    <div className="rounded-xl bg-white p-5 ring-1 ring-zinc-950/8 dark:bg-zinc-900 dark:ring-white/10">
+    <div
+      className={clsx(
+        'rounded-xl p-5 ring-1',
+        tinted && tone === 'danger'
+          ? 'bg-red-50 ring-red-200 dark:bg-red-950/40 dark:ring-red-900'
+          : tinted && tone === 'brand'
+            ? 'bg-brand-50 ring-brand-200 dark:bg-brand-950/40 dark:ring-brand-900'
+            : 'bg-white ring-zinc-950/8 dark:bg-zinc-900 dark:ring-white/10',
+      )}
+    >
       <div className="text-sm/6 font-medium text-zinc-500 dark:text-zinc-400">{label}</div>
       <div
         className={clsx(
           'mt-2 font-display text-4xl/10 font-semibold tabular-nums',
-          tone === 'danger' ? 'text-red-700 dark:text-red-400' : 'text-zinc-950 dark:text-white',
+          tone === 'danger'
+            ? 'text-red-700 dark:text-red-400'
+            : tinted && tone === 'brand'
+              ? 'text-brand-700 dark:text-brand-300'
+              : 'text-zinc-950 dark:text-white',
         )}
       >
         {value}
       </div>
-      <div
-        className={clsx(
-          'mt-2 text-sm/6',
-          tone === 'danger' && 'text-red-700 dark:text-red-400',
-          tone === 'brand' && 'font-medium text-brand-700 dark:text-brand-300',
-          tone === 'neutral' && 'text-zinc-500 dark:text-zinc-400',
-        )}
-      >
-        {note}
-      </div>
+      {note && (
+        <div
+          className={clsx(
+            'mt-2 text-sm/6',
+            tone === 'danger' && 'text-red-700 dark:text-red-400',
+            tone === 'brand' && 'font-medium text-brand-700 dark:text-brand-300',
+            tone === 'neutral' && 'text-zinc-500 dark:text-zinc-400',
+          )}
+        >
+          {note}
+        </div>
+      )}
     </div>
   )
 }

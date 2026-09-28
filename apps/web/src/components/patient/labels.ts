@@ -1,10 +1,17 @@
-import type { AppointmentStatusCode, AppointmentTypeCode, PatientStatusCode, Tone } from '@azza/shared'
+import type {
+  AppointmentStatusCode,
+  AppointmentTypeCode,
+  PatientStatusCode,
+  PatientVisitModeCode,
+  Tone,
+} from '@azza/shared'
 import {
   BeakerIcon,
   BuildingOffice2Icon,
   CalendarDaysIcon,
   ClipboardDocumentCheckIcon,
   PhoneIcon,
+  VideoCameraIcon,
   ViewfinderCircleIcon,
 } from '@heroicons/react/16/solid'
 
@@ -32,4 +39,9 @@ export const APPOINTMENT_ICONS: Record<AppointmentTypeCode, typeof PhoneIcon> = 
   LAB: BeakerIcon,
   FOLLOW_UP: ClipboardDocumentCheckIcon,
   OTHER: CalendarDaysIcon,
+}
+
+export const VISIT_MODE_ICONS: Record<PatientVisitModeCode, typeof PhoneIcon> = {
+  IN_CLINIC: BuildingOffice2Icon,
+  ONLINE: VideoCameraIcon,
 }

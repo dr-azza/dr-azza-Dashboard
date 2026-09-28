@@ -17,6 +17,7 @@ import type {
   AppointmentRangeDto,
   AttachmentDto,
   CreateAppointmentInput,
+  CreateTaskInput,
   AttachmentKindCode,
   CaseTypeDto,
   CreateCaseTypeInput,
@@ -42,6 +43,10 @@ import type {
   StaffListItemDto,
   TimelineEventDto,
   UpdateAppointmentInput,
+  UpdateTaskInput,
+  TaskDto,
+  TaskListDto,
+  PatientVisitModeCode,
   UpdateCaseTypeInput,
   UpdateHistoryEntryInput,
   UpdatePatientInput,
@@ -121,6 +126,7 @@ export interface PatientFilters {
   q?: string
   caseTypeId?: string
   status?: PatientStatusCode
+  visitMode?: PatientVisitModeCode
 }
 
 export function usePatients(filters: PatientFilters, options: { enabled?: boolean } = {}) {
@@ -133,6 +139,7 @@ export function usePatients(filters: PatientFilters, options: { enabled?: boolea
       if (filters.q) params.set('q', filters.q)
       if (filters.caseTypeId) params.set('caseTypeId', filters.caseTypeId)
       if (filters.status) params.set('status', filters.status)
+      if (filters.visitMode) params.set('visitMode', filters.visitMode)
       if (pageParam) params.set('cursor', pageParam)
       return api<Page<PatientListItemDto>>(`/patients?${params}`, { signal })
     },
@@ -497,3 +504,59 @@ export const useSendMemberLink = () =>
 
 /** Absolute URL of a set-password link, for copying. */
 export const inviteLinkUrl = (token: string) => `${window.location.origin}/invite/${token}`
+
+// --- Reminders (team tasks) ------------------------------------------------------------
+
+export interface TaskFilters {
+  status: 'open' | 'done'
+  /** A staff id, "me" or "unassigned"; omitted for everyone's. */
+  assignee?: string
+  patientId?: string
+  limit?: number
+}
+
+export const useTasks = (filters: TaskFilters, options: { refetchInterval?: number; enabled?: boolean } = {}) =>
+  useQuery({
+    enabled: options.enabled ?? true,
+    queryKey: ['reminders', filters],
+    queryFn: () => {
+      const params = new URLSearchParams({ status: filters.status })
+      if (filters.assignee) params.set('assignee', filters.assignee)
+      if (filters.patientId) params.set('patientId', filters.patientId)
+      if (filters.limit) params.set('limit', String(filters.limit))
+      return api<TaskListDto>(`/reminders?${params}`)
+    },
+    refetchInterval: options.refetchInterval,
+  })
+
+/**
+ * After any change: every reminder list, and activity logs (the reminder may have moved between
+ * patients). Also after a failure, e.g. someone else already completed it: the lists catch up.
+ */
+function useTaskMutation<TInput>(fn: (input: TInput) => Promise<TaskDto>) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: fn,
+    onSettled: () =>
+      Promise.all([
+        qc.invalidateQueries({ queryKey: ['reminders'] }),
+        qc.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'patient' && q.queryKey[2] === 'activity' }),
+      ]),
+  })
+}
+
+export const useCreateTask = () =>
+  useTaskMutation((input: CreateTaskInput) => api<TaskDto>('/reminders', { body: input }))
+
+export const useUpdateTask = () =>
+  useTaskMutation(({ taskId, ...input }: UpdateTaskInput & { taskId: string }) =>
+    api<TaskDto>(`/reminders/${taskId}`, { method: 'PATCH', body: input }),
+  )
+
+export const useSetTaskDone = () =>
+  useTaskMutation(({ taskId, done }: { taskId: string; done: boolean }) =>
+    api<TaskDto>(`/reminders/${taskId}/${done ? 'complete' : 'reopen'}`, { method: 'POST' }),
+  )
+
+export const useDeleteTask = () =>
+  useTaskMutation((taskId: string) => api<TaskDto>(`/reminders/${taskId}`, { method: 'DELETE' }))

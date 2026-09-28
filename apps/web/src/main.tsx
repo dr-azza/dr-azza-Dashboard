@@ -70,7 +70,7 @@ const router = createBrowserRouter([
               },
               {
                 path: '/reminders',
-                lazy: () => import('@/pages/simple-pages').then((m) => ({ Component: m.RemindersPage })),
+                lazy: () => import('@/pages/reminders').then((m) => ({ Component: m.RemindersPage })),
               },
               { path: '/team', lazy: () => import('@/pages/team').then((m) => ({ Component: m.TeamPage })) },
               {

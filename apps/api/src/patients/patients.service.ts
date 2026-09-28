@@ -35,6 +35,7 @@ const LIST_SELECT = {
   dateOfBirth: true,
   caseType: { select: { id: true, nameEn: true, nameAr: true, systemKey: true } },
   status: true,
+  visitMode: true,
   pregnancies: {
     where: { status: 'ACTIVE' },
     orderBy: { lmp: 'desc' },
@@ -58,6 +59,7 @@ function toListItem(p: ListRow): PatientListItemDto {
     age: ageFrom(p.dateOfBirth),
     caseType: toCaseTypeRef(p.caseType),
     status: p.status,
+    visitMode: p.visitMode,
     activePregnancy:
       pregnancy && facts
         ? {
@@ -105,6 +107,7 @@ export class PatientsService {
       clinicId: staff.clinicId,
       archivedAt: null,
       ...(query.caseTypeId && { caseTypeId: query.caseTypeId }),
+      ...(query.visitMode && { visitMode: query.visitMode }),
       ...(query.status && { status: query.status }),
       ...(q && {
         OR: [
@@ -143,6 +146,7 @@ export class PatientsService {
             phone: input.phone,
             dateOfBirth: fromIsoDayOrNull(input.dateOfBirth),
             caseTypeId: caseType.id,
+            visitMode: input.visitMode,
             consentAt: new Date(),
           },
           select: { id: true },
@@ -233,6 +237,7 @@ export class PatientsService {
         ...(input.dateOfBirth !== undefined && { dateOfBirth: fromIsoDayOrNull(input.dateOfBirth) }),
         ...(caseTypeId && { caseTypeId }),
         ...(input.status !== undefined && { status: input.status }),
+        ...(input.visitMode !== undefined && { visitMode: input.visitMode }),
       },
     })
     return this.get(staff, patientId)
