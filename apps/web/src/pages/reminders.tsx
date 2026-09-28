@@ -4,7 +4,7 @@ import { Button } from '@/components/catalyst/button'
 import { Heading } from '@/components/catalyst/heading'
 import { Select } from '@/components/catalyst/select'
 import { Text } from '@/components/catalyst/text'
-import { ReminderGroups, ReminderRow } from '@/components/reminders/reminder-list'
+import { ReminderGroups, ReminderRow, useMinuteClock } from '@/components/reminders/reminder-list'
 import { ReminderPanel } from '@/components/reminders/reminder-panel'
 import { useLang } from '@/i18n'
 import { useMe, useStaff, useTasks } from '@/lib/queries'
@@ -39,7 +39,8 @@ export function RemindersPage() {
       { replace: true },
     )
 
-  const now = new Date()
+  // Recounted every minute, so a reminder moves from Today to Overdue while the page is open.
+  const now = useMinuteClock()
   const count = (...buckets: string[]) =>
     items.filter((i) => buckets.includes(taskBucket(new Date(i.dueAt), now))).length
   const stats = [
@@ -103,13 +104,7 @@ export function RemindersPage() {
       {tab === 'open' && list.isSuccess && (
         <div className="grid grid-cols-3 gap-3">
           {stats.map((s) => (
-            <StatCard
-              key={s.key}
-              label={t(`reminders.stats.${s.key}`)}
-              value={s.value}
-              tone={s.tone}
-              tinted={s.value > 0}
-            />
+            <StatCard key={s.key} label={t(`reminders.stats.${s.key}`)} value={s.value} tone={s.tone} tinted />
           ))}
         </div>
       )}
