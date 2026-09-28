@@ -7,8 +7,10 @@ import { Input } from '@/components/catalyst/input'
 import { Select } from '@/components/catalyst/select'
 import { useLang } from '@/i18n'
 import { useCaseTypes, useCreatePatient } from '@/lib/queries'
-import { CreatePatientSchema } from '@azza/shared'
+import { CreatePatientSchema, PATIENT_VISIT_MODES, type PatientVisitModeCode } from '@azza/shared'
 import { PlusIcon } from '@heroicons/react/16/solid'
+import clsx from 'clsx'
+import { VISIT_MODE_ICONS } from './labels'
 import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { NewCaseTypeFields } from './case-type-form'
@@ -20,6 +22,7 @@ export function NewPatientPanel({ open, onClose }: { open: boolean; onClose: () 
   const cases = useCaseTypes()
   const [caseTypeId, setCaseTypeId] = useState('')
   const [addingCase, setAddingCase] = useState(false)
+  const [visitMode, setVisitMode] = useState<PatientVisitModeCode>('IN_CLINIC')
   const [errors, setErrors] = useState<Record<string, string>>({})
   const selectedCase = caseTypeId || cases.data?.[0]?.id || ''
 
@@ -32,6 +35,7 @@ export function NewPatientPanel({ open, onClose }: { open: boolean; onClose: () 
       phone: f.get('phone'),
       dateOfBirth: strOrNull(f.get('dateOfBirth')),
       caseTypeId: selectedCase,
+      visitMode,
       consentGiven: f.get('consent') === 'on',
     })
     if (!parsed.success) {
@@ -89,6 +93,49 @@ export function NewPatientPanel({ open, onClose }: { open: boolean; onClose: () 
             <Input name="dateOfBirth" type="date" />
           </Field>
         </div>
+
+        <Field>
+          <Label>{t('record.visitMode')}</Label>
+          <div className="mt-3 grid grid-cols-2 gap-2" role="radiogroup" aria-label={t('record.visitMode')}>
+            {PATIENT_VISIT_MODES.map((code) => {
+              const Icon = VISIT_MODE_ICONS[code]
+              const active = visitMode === code
+              return (
+                <button
+                  key={code}
+                  type="button"
+                  role="radio"
+                  aria-checked={active}
+                  onClick={() => setVisitMode(code)}
+                  className={clsx(
+                    'flex items-start gap-3 rounded-lg px-3 py-2.5 text-start ring-1 transition-colors focus-visible:outline-2 focus-visible:outline-brand-600',
+                    active
+                      ? 'bg-brand-50 ring-2 ring-brand-600 dark:bg-brand-950/50'
+                      : 'bg-white ring-zinc-950/10 hover:bg-zinc-50 dark:bg-zinc-800 dark:ring-white/10',
+                  )}
+                >
+                  <Icon
+                    className={clsx(
+                      'mt-0.5 size-4 shrink-0',
+                      active ? 'fill-brand-700 dark:fill-brand-300' : 'fill-zinc-400',
+                    )}
+                  />
+                  <span>
+                    <span
+                      className={clsx(
+                        'block text-sm/5 font-medium',
+                        active ? 'text-brand-800 dark:text-brand-200' : 'text-zinc-800 dark:text-zinc-200',
+                      )}
+                    >
+                      {t(`record.visitModes.${code}`)}
+                    </span>
+                    <span className="block text-xs/5 text-zinc-500">{t(`record.visitModeHints.${code}`)}</span>
+                  </span>
+                </button>
+              )
+            })}
+          </div>
+        </Field>
 
         <Field>
           <div className="flex items-center justify-between gap-3">

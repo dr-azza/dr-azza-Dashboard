@@ -3,7 +3,7 @@
  * Node + Postgres backend exists. Pregnancy ages are stored as "days pregnant today",
  * so gestational ages and due dates stay consistent whatever day the app is opened.
  */
-import type { Appointment, AttentionItem, FormResponse, FormTemplate, L, Patient, Reminder } from '@azza/shared'
+import type { Appointment, AttentionItem, FormResponse, FormTemplate, L, Patient } from '@azza/shared'
 
 const n = (en: string, ar: string): L => ({ en, ar })
 
@@ -419,45 +419,6 @@ export const attention: AttentionItem[] = [
     title: n('Lab results uploaded, not reviewed', 'نتائج تحاليل مرفوعة لم تُراجع'),
     detail: n('CBC, urine analysis', 'صورة دم، تحليل بول'),
     action: 'open',
-  },
-]
-
-export const reminders: Reminder[] = [
-  {
-    when: n('Today 14:00', 'اليوم 14:00'),
-    message: n('Appointment reminder', 'تذكير بموعد'),
-    to: n('Yasmin Farouk', 'ياسمين فاروق'),
-    channel: 'whatsapp',
-    status: 'queued',
-  },
-  {
-    when: n('Today 16:00', 'اليوم 16:00'),
-    message: n('Weekly check-in form', 'نموذج المتابعة الأسبوعية'),
-    to: n('11 pregnancies', '11 حالة حمل'),
-    channel: 'whatsapp',
-    status: 'queued',
-  },
-  {
-    when: n('Today 08:00', 'اليوم 08:00'),
-    message: n('Iron supplement reminder', 'تذكير بمكمل الحديد'),
-    to: n('4 patients', '4 مريضات'),
-    channel: 'sms',
-    status: 'sent',
-  },
-  {
-    when: n('Yesterday 18:00', 'أمس 18:00'),
-    message: n('Glucose test due', 'موعد تحليل السكر'),
-    to: n('Aya Ibrahim', 'آية إبراهيم'),
-    channel: 'whatsapp',
-    status: 'failed',
-    detail: n('Number unreachable', 'الرقم غير متاح'),
-  },
-  {
-    when: n('Yesterday 18:00', 'أمس 18:00'),
-    message: n('Visit tomorrow', 'زيارة غدًا'),
-    to: n('Mariam Adel', 'مريم عادل'),
-    channel: 'whatsapp',
-    status: 'sent',
   },
 ]
 

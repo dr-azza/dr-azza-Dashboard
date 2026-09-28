@@ -22,7 +22,7 @@ import { SidebarLayout } from '@/components/catalyst/sidebar-layout'
 import { ThemeSwitcher, ThemeToggleButton } from '@/components/app/theme-switcher'
 import { AzzahAppIcon } from '@/components/brand/logo'
 import { initials as initialsOf } from '@/components/app/ui'
-import { reminders } from '@/data/mock'
+import { dueNowCount } from '@/components/reminders/reminder-list'
 import { useLang } from '@/i18n'
 import { ArrowRightStartOnRectangleIcon, ChevronUpIcon, LanguageIcon } from '@heroicons/react/16/solid'
 import {
@@ -36,7 +36,7 @@ import {
   UsersIcon,
 } from '@heroicons/react/20/solid'
 import { UNAUTHORIZED_EVENT } from '@/lib/api'
-import { useFormResponsesSummary, useLogout, useMe } from '@/lib/queries'
+import { useFormResponsesSummary, useLogout, useMe, useTasks } from '@/lib/queries'
 import { FEATURES } from '@/lib/features'
 import { CountBadge, SidebarGroup } from './sidebar-group'
 import { useQueryClient } from '@tanstack/react-query'
@@ -66,7 +66,9 @@ export function AppLayout() {
   const is = (path: string) => (path === '/' ? pathname === '/' : pathname.startsWith(path))
 
   const newResponses = useFormResponsesSummary(!!me.data).data?.newCount ?? 0
-  const failedReminders = reminders.filter((r) => r.status === 'failed').length
+  // Mine that are overdue or due today; refreshed every minute so the badge follows the clock.
+  const myReminders = useTasks({ status: 'open', assignee: 'me' }, { refetchInterval: 60_000, enabled: !!me.data })
+  const dueReminders = dueNowCount(myReminders.data?.items)
 
   const userMenu = (anchor: 'top start' | 'bottom end') => (
     <DropdownMenu className="min-w-64" anchor={anchor}>
@@ -157,7 +159,7 @@ export function AppLayout() {
               <SidebarItem href="/reminders" current={is('/reminders')}>
                 <BellAlertIcon />
                 <SidebarLabel>{t('nav.reminders')}</SidebarLabel>
-                <CountBadge count={failedReminders} />
+                <CountBadge count={dueReminders} />
               </SidebarItem>
             </SidebarSection>
 

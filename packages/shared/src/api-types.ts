@@ -12,6 +12,7 @@ import type {
   BLOOD_GROUPS,
   DELIVERY_MODES,
   PATIENT_STATUSES,
+  PATIENT_VISIT_MODES,
   PAYMENT_METHODS,
   PREGNANCY_OUTCOMES,
   SYSTEM_CASE_KEYS,
@@ -33,6 +34,7 @@ export interface CaseTypeDto extends CaseTypeRefDto {
   patientCount: number
 }
 export type PatientStatusCode = (typeof PATIENT_STATUSES)[number]
+export type PatientVisitModeCode = (typeof PATIENT_VISIT_MODES)[number]
 export type PaymentMethodCode = (typeof PAYMENT_METHODS)[number]
 export type AttachmentKindCode = (typeof ATTACHMENT_KINDS)[number]
 export type PregnancyOutcomeCode = (typeof PREGNANCY_OUTCOMES)[number]
@@ -77,6 +79,7 @@ export interface PatientListItemDto {
   age: number | null
   caseType: CaseTypeRefDto
   status: PatientStatusCode
+  visitMode: PatientVisitModeCode
   activePregnancy: ActivePregnancyDto | null
   lastVisitAt: string | null
 }

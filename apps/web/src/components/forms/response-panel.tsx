@@ -2,14 +2,14 @@ import { RequestError, formatPhone, useFormat } from '@/components/app/form'
 import { SidePanel } from '@/components/app/side-panel'
 import { ToneBadge } from '@/components/app/ui'
 import { Button } from '@/components/catalyst/button'
-import { Input } from '@/components/catalyst/input'
 import { useLang } from '@/i18n'
-import { useFormResponse, usePatients, useUpdateFormResponse } from '@/lib/queries'
+import { PatientPicker } from '@/components/patient/patient-picker'
+import { useFormResponse, useUpdateFormResponse } from '@/lib/queries'
 import { answerText, type FormResponseDto, visibleFieldIds } from '@azza/shared'
 import { CheckIcon, LinkIcon, UserIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import i18n from 'i18next'
-import { useDeferredValue, useMemo, useState } from 'react'
+import { useMemo, useState } from 'react'
 
 /** One response: every question the patient saw, her answers, and who she is (or linking her). */
 export function ResponsePanel({ responseId, onClose }: { responseId: string | null; onClose: () => void }) {
@@ -137,55 +137,6 @@ function Respondent({ response: r }: { response: FormResponseDto }) {
       )}
       <RequestError error={update.error} className="mt-3" />
     </section>
-  )
-}
-
-function PatientPicker({
-  initialQuery,
-  pending,
-  canUnlink,
-  onPick,
-}: {
-  initialQuery: string
-  pending: boolean
-  canUnlink: boolean
-  onPick: (patientId: string | null) => void
-}) {
-  const { t } = useLang()
-  const [q, setQ] = useState(initialQuery)
-  const query = useDeferredValue(q.trim())
-  const patients = usePatients({ q: query }, { enabled: query.length >= 2 })
-  const items = patients.data?.pages.flatMap((p) => p.items).slice(0, 8) ?? []
-
-  return (
-    <div className="mt-4 space-y-2">
-      <Input
-        autoFocus
-        placeholder={t('forms.responses.searchPatient')}
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-      />
-      <ul className="divide-y divide-zinc-950/5 overflow-hidden rounded-lg bg-white ring-1 ring-zinc-950/10 empty:hidden dark:divide-white/5 dark:bg-zinc-900 dark:ring-white/10">
-        {items.map((p) => (
-          <li key={p.id}>
-            <button
-              type="button"
-              disabled={pending}
-              onClick={() => onPick(p.id)}
-              className="flex w-full items-center justify-between gap-3 px-3 py-2 text-start text-sm/6 hover:bg-brand-50 focus-visible:bg-brand-50 focus-visible:outline-hidden dark:hover:bg-white/5"
-            >
-              <span className="min-w-0 truncate font-medium text-zinc-950 dark:text-white">{p.fullName}</span>
-              <span className="shrink-0 text-xs/5 text-zinc-500">{p.fileNumber}</span>
-            </button>
-          </li>
-        ))}
-      </ul>
-      {canUnlink && (
-        <Button plain disabled={pending} onClick={() => onPick(null)}>
-          {t('forms.responses.unlink')}
-        </Button>
-      )}
-    </div>
   )
 }
 

@@ -8,6 +8,8 @@ import { isoDate, optionalText, phoneE164, requiredText } from './common.js'
 /** Built-in cases every clinic starts with. Clinics can add their own on top. */
 export const SYSTEM_CASE_KEYS = ['PREGNANCY', 'GYNECOLOGY', 'POSTPARTUM', 'FERTILITY'] as const
 export const PATIENT_STATUSES = ['OK', 'FLAGGED', 'OVERDUE', 'AWAITING'] as const
+/** How the patient is seen: at the clinic, or online (video or phone consultations). */
+export const PATIENT_VISIT_MODES = ['IN_CLINIC', 'ONLINE'] as const
 export const BLOOD_GROUPS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'] as const
 
 // --- Patient ----------------------------------------------------------------
@@ -18,6 +20,7 @@ export const CreatePatientSchema = z.object({
   phone: phoneE164,
   dateOfBirth: isoDate.nullish(),
   caseTypeId: z.uuid(),
+  visitMode: z.enum(PATIENT_VISIT_MODES).default('IN_CLINIC'),
   consentGiven: z.boolean().refine((v) => v, { message: 'Consent is required to create a medical record' }),
 })
 export type CreatePatientInput = z.input<typeof CreatePatientSchema>
@@ -29,6 +32,7 @@ export const UpdatePatientSchema = z
     phone: phoneE164,
     dateOfBirth: isoDate.nullable(),
     caseTypeId: z.uuid(),
+    visitMode: z.enum(PATIENT_VISIT_MODES),
     status: z.enum(PATIENT_STATUSES),
   })
   .partial()
@@ -38,6 +42,7 @@ export const ListPatientsQuerySchema = z.object({
   q: z.string().trim().max(100).optional(),
   caseTypeId: z.uuid().optional(),
   status: z.enum(PATIENT_STATUSES).optional(),
+  visitMode: z.enum(PATIENT_VISIT_MODES).optional(),
   cursor: z.string().optional(),
   limit: z.coerce.number().int().min(1).max(100).default(25),
 })

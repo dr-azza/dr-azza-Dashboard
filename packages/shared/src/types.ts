@@ -91,15 +91,6 @@ export interface AttentionItem {
 export type DeliveryStatus = 'queued' | 'sent' | 'failed'
 export type Channel = 'whatsapp' | 'sms'
 
-export interface Reminder {
-  when: L
-  message: L
-  to: L
-  channel: Channel
-  status: DeliveryStatus
-  detail?: L
-}
-
 export interface FormTemplate {
   id: string
   name: L

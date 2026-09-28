@@ -24,12 +24,14 @@ import { HistoryTab } from './history-tab'
 import { OverviewTab } from './overview-tab'
 import { PaymentsTab } from './payments-tab'
 import { PrescriptionsTab } from './prescriptions-tab'
+import { RemindersTab } from './reminders-tab'
 
 const ALL_TABS = [
   'overview',
   'history',
   'followUp',
   'appointments',
+  'reminders',
   'forms',
   'prescriptions',
   'payments',
@@ -80,6 +82,8 @@ export function PatientPage() {
         return <FollowUpTab patientId={id} />
       case 'appointments':
         return <AppointmentsTab patientId={id} />
+      case 'reminders':
+        return <RemindersTab patient={p} />
       case 'forms':
         return <FormsTab patientId={id} />
       case 'prescriptions':
@@ -134,6 +138,9 @@ export function PatientPage() {
               </a>
               <ToneBadge tone={statusTone[p.status]}>{t(statusKey(p.status))}</ToneBadge>
               <ToneBadge tone="neutral">{l(p.caseType.name)}</ToneBadge>
+              <ToneBadge tone={p.visitMode === 'ONLINE' ? 'info' : 'neutral'}>
+                {t(`record.visitModes.${p.visitMode}`)}
+              </ToneBadge>
               {p.activePregnancy && (
                 <ToneBadge tone="info">
                   {t('common.ga', { w: p.activePregnancy.weeks, d: p.activePregnancy.days })}
