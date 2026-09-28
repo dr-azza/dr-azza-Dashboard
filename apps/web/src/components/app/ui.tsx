@@ -92,7 +92,7 @@ export function StatCard({
   label,
   value,
   note,
-  tone = 'neutral',
+  tone: requestedTone = 'neutral',
   tinted = false,
 }: {
   label: string
@@ -102,6 +102,8 @@ export function StatCard({
   /** Colour the whole card (and the value) by its tone, to make it stand out. */
   tinted?: boolean
 }) {
+  // A zero count has nothing to act on, so it never warns, whatever the tone.
+  const tone = value === 0 ? 'neutral' : requestedTone
   return (
     <div
       className={clsx(
