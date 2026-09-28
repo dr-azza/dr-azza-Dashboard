@@ -10,10 +10,11 @@ import { Text } from '@/components/catalyst/text'
 import { Textarea } from '@/components/catalyst/textarea'
 import { useLang } from '@/i18n'
 import { useCreatePrescription, usePrescriptions, useVoidPrescription } from '@/lib/queries'
+import { downloadPrescriptionPdf, PrescriptionSheet } from '@/components/patient/prescription-sheet'
 import { CreatePrescriptionSchema, type PatientDto, type PrescriptionDto, searchDrugs } from '@azza/shared'
-import { PlusIcon, PrinterIcon, TrashIcon } from '@heroicons/react/16/solid'
+import { ArrowDownTrayIcon, EyeIcon, PlusIcon, PrinterIcon, TrashIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 type Item = { drugName: string; dose: string; frequency: string; duration: string; instructions: string }
 const emptyItem = (): Item => ({ drugName: '', dose: '', frequency: '', duration: '', instructions: '' })
@@ -35,7 +36,7 @@ export function PrescriptionsTab({ patient }: { patient: PatientDto }) {
       {list.data?.length === 0 && <Text>{t('record.rx.none')}</Text>}
       <div className="grid gap-4 lg:grid-cols-2">
         {list.data?.map((rx) => (
-          <PrescriptionCard key={rx.id} patientId={patient.id} rx={rx} />
+          <PrescriptionCard key={rx.id} patient={patient} rx={rx} />
         ))}
       </div>
       {open && <NewPrescriptionDialog patient={patient} onClose={() => setOpen(false)} />}
@@ -43,34 +44,24 @@ export function PrescriptionsTab({ patient }: { patient: PatientDto }) {
   )
 }
 
-function PrescriptionCard({ patientId, rx }: { patientId: string; rx: PrescriptionDto }) {
+function PrescriptionCard({ patient, rx }: { patient: PatientDto; rx: PrescriptionDto }) {
+  const patientId = patient.id
   const { t } = useLang()
   const fmt = useFormat()
   const voidRx = useVoidPrescription(patientId)
   const [voidOpen, setVoidOpen] = useState(false)
+  const [viewing, setViewing] = useState(false)
+  const download = usePrescriptionDownload(patient, rx)
   const voided = !!rx.voidedAt
 
   return (
     <Card
       className={clsx(voided && 'opacity-70')}
       title={
-        <span className="flex items-center gap-2">
+        <span className="flex items-center gap-2 whitespace-nowrap">
           {t('record.rx.number', { number: rx.number })}
           {voided && <Badge color="zinc">{t('record.rx.voided')}</Badge>}
         </span>
-      }
-      action={
-        !voided && (
-          <div className="flex gap-1">
-            <Button plain href={`/print/prescription/${patientId}/${rx.id}`} target="_blank" rel="noopener">
-              <PrinterIcon />
-              {t('record.rx.print')}
-            </Button>
-            <Button plain onClick={() => setVoidOpen(true)}>
-              {t('record.rx.void')}
-            </Button>
-          </div>
-        )
       }
     >
       <p className="text-xs/5 text-zinc-500">
@@ -123,6 +114,33 @@ function PrescriptionCard({ patientId, rx }: { patientId: string; rx: Prescripti
         </Field>
         <RequestError error={voidRx.error} className="mt-4" />
       </SidePanel>
+      {!voided && (
+        <div className="-mx-2 mt-4 flex flex-wrap items-center gap-1 border-t border-zinc-950/5 pt-3 dark:border-white/5">
+          <Button plain onClick={() => setViewing(true)}>
+            <EyeIcon />
+            {t('record.rx.view')}
+          </Button>
+          <Button plain onClick={download.run} disabled={download.pending}>
+            <ArrowDownTrayIcon />
+            {download.pending ? t('record.rx.downloading') : t('record.rx.download')}
+          </Button>
+          <Button plain href={`/print/prescription/${patientId}/${rx.id}`} target="_blank" rel="noopener">
+            <PrinterIcon />
+            {t('record.rx.print')}
+          </Button>
+          {/* Destructive, so set apart at the far end. */}
+          <Button plain className="ms-auto" onClick={() => setVoidOpen(true)}>
+            <span className="text-red-600 dark:text-red-400">{t('record.rx.void')}</span>
+          </Button>
+        </div>
+      )}
+      {download.error && (
+        <p role="alert" className="mt-2 text-sm/6 text-red-600 dark:text-red-400">
+          {t('record.rx.downloadFailed')}
+        </p>
+      )}
+      {download.sheet}
+      <PrescriptionViewPanel open={viewing} onClose={() => setViewing(false)} patient={patient} rx={rx} />
     </Card>
   )
 }
@@ -279,6 +297,103 @@ function NewPrescriptionDialog({ patient, onClose }: { patient: PatientDto; onCl
       </div>
       {formError && <RequestError error={new Error(formError)} className="mt-4" />}
       <RequestError error={create.error} className="mt-4" />
+    </SidePanel>
+  )
+}
+
+/**
+ * Downloads a prescription as a PDF straight from its card: the sheet is rendered off-screen just
+ * long enough to capture it, then removed.
+ */
+function usePrescriptionDownload(patient: PatientDto, rx: PrescriptionDto) {
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState(false)
+  const ref = useRef<HTMLElement>(null)
+
+  useEffect(() => {
+    if (!pending || !ref.current) return
+    let cancelled = false
+    downloadPrescriptionPdf(ref.current, `${rx.number}.pdf`)
+      .catch(() => !cancelled && setError(true))
+      .finally(() => !cancelled && setPending(false))
+    return () => {
+      cancelled = true
+    }
+  }, [pending, rx.number])
+
+  return {
+    pending,
+    error,
+    run: () => {
+      setError(false)
+      setPending(true)
+    },
+    sheet: pending ? (
+      <div aria-hidden="true" className="pointer-events-none fixed top-0 -left-[10000px]">
+        <PrescriptionSheet ref={ref} patient={patient} prescription={rx} />
+      </div>
+    ) : null,
+  }
+}
+
+/** The prescription exactly as it prints, with Download PDF and Print. */
+function PrescriptionViewPanel({
+  open,
+  onClose,
+  patient,
+  rx,
+}: {
+  open: boolean
+  onClose: () => void
+  patient: PatientDto
+  rx: PrescriptionDto
+}) {
+  const { t } = useLang()
+  const sheetRef = useRef<HTMLElement>(null)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState(false)
+
+  return (
+    <SidePanel
+      open={open}
+      onClose={onClose}
+      size="2xl"
+      title={t('record.rx.number', { number: rx.number })}
+      actions={
+        <>
+          {error && (
+            <span className="me-auto text-sm/6 text-red-600 dark:text-red-400">{t('record.rx.downloadFailed')}</span>
+          )}
+          <Button outline href={`/print/prescription/${patient.id}/${rx.id}`} target="_blank" rel="noopener">
+            <PrinterIcon />
+            {t('record.rx.print')}
+          </Button>
+          <Button
+            color="brand"
+            disabled={pending}
+            onClick={async () => {
+              if (!sheetRef.current) return
+              setError(false)
+              setPending(true)
+              try {
+                await downloadPrescriptionPdf(sheetRef.current, `${rx.number}.pdf`)
+              } catch {
+                setError(true)
+              } finally {
+                setPending(false)
+              }
+            }}
+          >
+            <ArrowDownTrayIcon />
+            {pending ? t('record.rx.downloading') : t('record.rx.download')}
+          </Button>
+        </>
+      }
+    >
+      {/* Paper on a grey desk, as it will look printed. */}
+      <div className="-mx-2 overflow-x-auto rounded-xl bg-zinc-100 p-4 dark:bg-zinc-800">
+        <PrescriptionSheet ref={sheetRef} patient={patient} prescription={rx} className="mx-auto shadow-md" />
+      </div>
     </SidePanel>
   )
 }
