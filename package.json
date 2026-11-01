@@ -21,15 +21,15 @@
   "packageManager": "pnpm@10.18.0",
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.11.0",
+    "eslint": "^10.13.0",
     "eslint-plugin-react-hooks": "^7.1.1",
-    "globals": "^17.12.0",
-    "prettier": "^3.9.9",
+    "globals": "^17.13.0",
+    "prettier": "^3.9.10",
     "prettier-plugin-tailwindcss": "^0.8.1",
-    "tsdown": "^0.23.0",
-    "turbo": "^2.11.4",
+    "tsdown": "^0.23.3",
+    "turbo": "^2.11.10",
     "typescript": "^6.0.3",
-    "typescript-eslint": "^8.70.1",
-    "vitest": "^5.0.2"
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^5.0.5"
   }
 }
