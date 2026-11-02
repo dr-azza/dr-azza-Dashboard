@@ -3,7 +3,7 @@
  * mobile apps (forms). Enum values match the database enums.
  */
 import { z } from 'zod'
-import { isoDate, optionalText, phoneE164, requiredText } from './common.js'
+import { isoDate, moneyAmount, optionalText, phoneE164, requiredText } from './common.js'
 
 /** Built-in cases every clinic starts with. Clinics can add their own on top. */
 export const SYSTEM_CASE_KEYS = ['PREGNANCY', 'GYNECOLOGY', 'POSTPARTUM', 'FERTILITY'] as const
@@ -174,11 +174,7 @@ export const PAYMENT_METHODS = ['CASH', 'INSTAPAY', 'VODAFONE_CASH', 'CARD', 'BA
 
 export const CreatePaymentSchema = z.object({
   /** Amount in EGP with at most two decimals. */
-  amount: z
-    .number()
-    .positive()
-    .max(10_000_000)
-    .refine((v) => Math.round(v * 100) === v * 100, 'At most two decimals'),
+  amount: moneyAmount,
   method: z.enum(PAYMENT_METHODS),
   purpose: requiredText(120),
   reference: optionalText(120),

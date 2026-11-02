@@ -26,6 +26,7 @@ import { dueNowCount, useMinuteClock } from '@/components/reminders/reminder-lis
 import { useLang } from '@/i18n'
 import { ArrowRightStartOnRectangleIcon, ChevronUpIcon, LanguageIcon } from '@heroicons/react/16/solid'
 import {
+  BanknotesIcon,
   BellAlertIcon,
   CalendarDaysIcon,
   ClipboardDocumentListIcon,
@@ -38,6 +39,7 @@ import {
 import { UNAUTHORIZED_EVENT } from '@/lib/api'
 import { useFormResponsesSummary, useLogout, useMe, useTasks } from '@/lib/queries'
 import { FEATURES } from '@/lib/features'
+import { canSeeFinance } from '@azza/shared'
 import { CountBadge, SidebarGroup } from './sidebar-group'
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect } from 'react'
@@ -163,6 +165,27 @@ export function AppLayout() {
                 <SidebarLabel>{t('nav.reminders')}</SidebarLabel>
                 <CountBadge count={dueReminders} />
               </SidebarItem>
+              {canSeeFinance(me.data?.role ?? '') && (
+                <SidebarGroup
+                  id="finance"
+                  icon={<BanknotesIcon />}
+                  label={t('finance.nav')}
+                  items={[
+                    { href: '/finance', label: t('finance.navOverview'), current: pathname === '/finance' },
+                    {
+                      href: '/finance/transactions',
+                      label: t('finance.navTransactions'),
+                      current: is('/finance/transactions'),
+                    },
+                    { href: '/finance/recurring', label: t('finance.navRecurring'), current: is('/finance/recurring') },
+                    {
+                      href: '/finance/categories',
+                      label: t('finance.navCategories'),
+                      current: is('/finance/categories'),
+                    },
+                  ]}
+                />
+              )}
             </SidebarSection>
 
             <SidebarSpacer />

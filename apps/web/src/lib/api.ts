@@ -50,3 +50,11 @@ export async function api<T>(
 /** URL for viewing (inline) or downloading an attachment through the authenticated API. */
 export const attachmentUrl = (patientId: string, attachmentId: string, download = false) =>
   `${BASE}/patients/${patientId}/attachments/${attachmentId}/file${download ? '?download=1' : ''}`
+
+/** A finance receipt, viewed inline or downloaded. */
+export const financeReceiptUrl = (receiptId: string, download = false) =>
+  `${BASE}/finance/receipts/${receiptId}/file${download ? '?download=1' : ''}`
+
+/** The ledger for a range as CSV (opens in Excel), with headings in the given language. */
+export const financeExportUrl = (from: string, to: string, lang: 'en' | 'ar') =>
+  `${BASE}/finance/export?${new URLSearchParams({ from, to, lang })}`

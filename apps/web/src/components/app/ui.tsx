@@ -94,6 +94,7 @@ export function StatCard({
   note,
   tone: requestedTone = 'neutral',
   tinted = false,
+  size = 'lg',
 }: {
   label: string
   value: React.ReactNode
@@ -101,6 +102,8 @@ export function StatCard({
   tone?: 'neutral' | 'danger' | 'brand'
   /** Colour the whole card (and the value) by its tone, to make it stand out. */
   tinted?: boolean
+  /** md for long values such as money, so they fit on one line in a narrow card. */
+  size?: 'lg' | 'md'
 }) {
   // A zero count has nothing to act on, so it never warns, whatever the tone.
   const tone = value === 0 ? 'neutral' : requestedTone
@@ -118,7 +121,8 @@ export function StatCard({
       <div className="text-sm/6 font-medium text-zinc-500 dark:text-zinc-400">{label}</div>
       <div
         className={clsx(
-          'mt-2 font-display text-4xl/10 font-semibold tabular-nums',
+          'mt-2 truncate font-display font-semibold whitespace-nowrap tabular-nums',
+          size === 'lg' ? 'text-4xl/10' : 'text-3xl/9',
           tone === 'danger'
             ? 'text-red-700 dark:text-red-400'
             : tinted && tone === 'brand'

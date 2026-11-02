@@ -30,7 +30,7 @@ export const toAttachmentDto = (a: Row): AttachmentDto => ({
   uploadedBy: staffRef(a.uploadedBy),
 })
 
-const EXTENSION: Record<string, string> = {
+export const FILE_EXTENSION: Record<string, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
@@ -39,7 +39,7 @@ const EXTENSION: Record<string, string> = {
 }
 
 /** Keeps a readable, safe file name for downloads (no paths, no control characters). */
-const safeFileName = (name: string) =>
+export const safeFileName = (name: string) =>
   [...name]
     // Drop control characters and quotes; replace path separators.
     .filter((ch) => ch.charCodeAt(0) >= 0x20 && ch.charCodeAt(0) !== 0x7f && ch !== '"')
@@ -93,7 +93,7 @@ export class AttachmentsService {
     }
 
     const id = randomUUID()
-    const storageKey = `${patient.clinicId}/${patientId}/${id}.${EXTENSION[mimeType]}`
+    const storageKey = `${patient.clinicId}/${patientId}/${id}.${FILE_EXTENSION[mimeType]}`
     await this.storage.put(storageKey, file.bytes)
     try {
       const row = await this.prisma.attachment.create({

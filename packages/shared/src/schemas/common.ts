@@ -32,3 +32,10 @@ export interface Page<T> {
   items: T[]
   nextCursor: string | null
 }
+
+/** A money amount: positive, at most two decimals (piastres), below ten million. */
+export const moneyAmount = z
+  .number()
+  .positive()
+  .max(10_000_000)
+  .refine((v) => Math.round(v * 100) === v * 100, 'At most two decimals')
