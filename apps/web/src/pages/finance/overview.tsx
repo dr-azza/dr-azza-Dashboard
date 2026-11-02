@@ -1,4 +1,4 @@
-import { RequestError, useFormat } from '@/components/app/form'
+import { RequestError, todayInputValue, useFormat } from '@/components/app/form'
 import { Card, StatCard } from '@/components/app/ui'
 import { Button } from '@/components/catalyst/button'
 import { Text } from '@/components/catalyst/text'
@@ -12,7 +12,7 @@ import { ArrowDownTrayIcon, ChevronLeftIcon, ChevronRightIcon, PlusIcon } from '
 import clsx from 'clsx'
 import { useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { dayDate, FinanceGate, FinancePageHeader, localToday } from './shared'
+import { dayDate, FinanceGate, FinancePageHeader } from './shared'
 
 type View = 'month' | 'year'
 
@@ -39,7 +39,7 @@ function Overview() {
   const { t, l, lang, formatDate } = useLang()
   const fmt = useFormat()
   const [params, setParams] = useSearchParams()
-  const today = localToday()
+  const today = todayInputValue()
   const view: View = params.get('view') === 'year' ? 'year' : 'month'
   const current = view === 'year' ? today.slice(0, 4) : today.slice(0, 7)
   const period = params.get('period') ?? current

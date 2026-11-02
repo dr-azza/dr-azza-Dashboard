@@ -22,7 +22,7 @@ import {
 import { PauseIcon, PlayIcon, PlusIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useState } from 'react'
-import { FinanceGate, FinancePageHeader, localToday } from './shared'
+import { FinanceGate, FinancePageHeader } from './shared'
 
 export function FinanceRecurringPage() {
   return (
@@ -39,7 +39,7 @@ function Recurring() {
   const update = useUpdateRecurringExpense()
   const [editing, setEditing] = useState<RecurringExpenseDto | null>(null)
   const [adding, setAdding] = useState(false)
-  const today = localToday()
+  const today = todayInputValue()
   const ended = (r: RecurringExpenseDto) => !!r.endsOn && r.endsOn < today
   const active = (list.data ?? []).filter((r) => !r.paused && !ended(r))
   const monthly = active.reduce((sum, r) => sum + Number(r.amount), 0)
@@ -129,7 +129,7 @@ function RecurringPanel({ recurring: r, onClose }: { recurring?: RecurringExpens
   const options = (categories.data ?? []).filter(
     (c) => c.kind === 'EXPENSE' && (!c.archived || c.id === r?.category.id),
   )
-  const defaultDay = Math.min(Number(localToday().slice(8)), 28)
+  const defaultDay = Math.min(Number(todayInputValue().slice(8)), 28)
 
   return (
     <SidePanel

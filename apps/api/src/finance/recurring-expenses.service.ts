@@ -1,5 +1,6 @@
 import {
   addMonths,
+  shiftDay,
   type CreateRecurringExpenseInput,
   eachMonth,
   recurrenceDay,
@@ -72,17 +73,29 @@ export class RecurringExpensesService {
     return { today: clinicToday(clinic.timezone), timeZone: clinic.timezone }
   }
 
-  /** Adds every occurrence due by today that isn't there yet. */
+  /**
+   * Adds every occurrence due by today that isn't there yet. Each rule remembers how far it was
+   * brought up to date, so this only looks at days since then; paused rules are skipped and do
+   * not advance (resuming moves them past the paused days instead).
+   */
   async materialize(clinicId: string, today: string) {
+    const todayDate = fromIsoDay(today)
     const due = await this.prisma.recurringExpense.findMany({
-      where: { clinicId, pausedAt: null, startsOn: { lte: fromIsoDay(today) } },
+      where: {
+        clinicId,
+        pausedAt: null,
+        startsOn: { lte: todayDate },
+        OR: [{ materializedThrough: null }, { materializedThrough: { lt: todayDate } }],
+      },
     })
+    if (!due.length) return
     const data: Prisma.FinanceEntryCreateManyInput[] = []
     for (const r of due) {
       const rule = { dayOfMonth: r.dayOfMonth, startsOn: toIsoDay(r.startsOn), endsOn: toIsoDayOrNull(r.endsOn) }
-      for (const month of eachMonth(rule.startsOn, today)) {
+      const after = toIsoDayOrNull(r.materializedThrough)
+      for (const month of eachMonth(after ?? rule.startsOn, today)) {
         const day = recurrenceDay(rule, month)
-        if (!day || day > today) continue
+        if (!day || day > today || (after && day <= after)) continue
         data.push({
           clinicId,
           kind: 'EXPENSE',
@@ -99,7 +112,12 @@ export class RecurringExpensesService {
         })
       }
     }
+    // Racing requests both insert; the unique (recurring expense, month) key keeps one.
     if (data.length) await this.prisma.financeEntry.createMany({ data, skipDuplicates: true })
+    await this.prisma.recurringExpense.updateMany({
+      where: { id: { in: due.map((r) => r.id) }, pausedAt: null },
+      data: { materializedThrough: todayDate },
+    })
   }
 
   async list(staff: AuthStaff) {
@@ -140,21 +158,22 @@ export class RecurringExpensesService {
   }
 
   /**
-   * Changes apply from now on; entries already added keep their amounts. Resuming starts again
-   * from today, so the months it was paused are not added afterwards.
+   * Changes apply from now on; entries already added keep their amounts. Resuming, or extending
+   * one that had ended, continues from today: the months it was off are not added afterwards.
    */
   async update(staff: AuthStaff, id: string, input: UpdateRecurringExpenseInput) {
     const current = await this.require(staff, id)
     if (input.categoryId && input.categoryId !== current.categoryId) {
       await this.categories.requireAssignable(staff, input.categoryId, 'EXPENSE')
     }
-    const { today } = await this.today(staff.clinicId)
-    // Bring it up to date before a pause or change, so months already due use the old terms.
-    await this.materialize(staff.clinicId, today)
     if (input.endsOn && input.endsOn < toIsoDay(current.startsOn)) {
       throw new BadRequestException('The end date must be on or after the start date')
     }
+    const { today } = await this.today(staff.clinicId)
+    // Bring it up to date first, so months already due use the old terms.
+    await this.materialize(staff.clinicId, today)
     const resuming = input.paused === false && !!current.pausedAt
+    const yesterday = fromIsoDay(shiftDay(today, -1))
     const row = await this.prisma.recurringExpense.update({
       where: { id },
       data: {
@@ -166,10 +185,8 @@ export class RecurringExpensesService {
         ...(input.dayOfMonth !== undefined && { dayOfMonth: input.dayOfMonth }),
         ...(input.endsOn !== undefined && { endsOn: fromIsoDayOrNull(input.endsOn) }),
         ...(input.paused === true && !current.pausedAt && { pausedAt: new Date() }),
-        ...(resuming && {
-          pausedAt: null,
-          ...(toIsoDay(current.startsOn) < today && { startsOn: fromIsoDay(today) }),
-        }),
+        // Paused days are skipped, not owed: pick up from today (today's own occurrence included).
+        ...(resuming && { pausedAt: null, materializedThrough: yesterday }),
       },
       include: INCLUDE,
     })

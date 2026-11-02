@@ -5,7 +5,7 @@ import {
   SYSTEM_FINANCE_CATEGORIES,
   type UpdateFinanceCategoryInput,
 } from '@azza/shared'
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common'
 import type { AuthStaff } from '../auth/auth.types'
 import type { FinanceCategory } from '../generated/prisma/client'
 import { PrismaService } from '../prisma/prisma.service'
@@ -71,8 +71,24 @@ export class FinanceCategoriesService {
     return toCategoryDto(row)
   }
 
+  /**
+   * Archiving stops new money in a category, so it's refused while a recurring expense would
+   * keep adding to it: pause or move those first.
+   */
   async update(staff: AuthStaff, categoryId: string, input: UpdateFinanceCategoryInput) {
     await this.require(staff, categoryId)
+    if (input.archived) {
+      const running = await this.prisma.recurringExpense.count({
+        where: { categoryId, pausedAt: null, OR: [{ endsOn: null }, { endsOn: { gte: new Date() } }] },
+      })
+      if (running) {
+        throw new ConflictException({
+          statusCode: 409,
+          code: 'CATEGORY_HAS_RECURRING',
+          message: 'Pause or move the recurring expenses in this category before archiving it',
+        })
+      }
+    }
     const row = await this.prisma.financeCategory.update({
       where: { id: categoryId },
       data: {

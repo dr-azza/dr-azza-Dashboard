@@ -1,5 +1,4 @@
 import {
-  ALLOWED_UPLOAD_TYPES,
   type CreateFinanceEntryInput,
   type FinanceEntryDto,
   type FinanceReceiptDto,
@@ -12,16 +11,15 @@ import {
   Inject,
   Injectable,
   NotFoundException,
-  PayloadTooLargeException,
 } from '@nestjs/common'
 import { createHash, randomUUID } from 'node:crypto'
 import type { AuthStaff } from '../auth/auth.types'
 import { fromIsoDay, STAFF_REF_SELECT, staffRef, toIsoDay } from '../common/format'
 import { ENV, type Env } from '../config/env'
 import type { FinanceReceipt, Prisma } from '../generated/prisma/client'
-import { FILE_EXTENSION, safeFileName } from '../patients/attachments.service'
+import { checkUpload, FILE_EXTENSION, safeFileName } from '../patients/attachments.service'
 import { PrismaService } from '../prisma/prisma.service'
-import { sniffMimeType, StorageService } from '../storage/storage.service'
+import { StorageService } from '../storage/storage.service'
 import { CATEGORY_NAME_SELECT, categoryName, FinanceCategoriesService } from './finance-categories.service'
 
 /** Enough for an invoice and its supporting pages, not a document store. */
@@ -151,14 +149,7 @@ export class FinanceEntriesService {
     if (entry.receipts.length >= MAX_RECEIPTS_PER_ENTRY) {
       throw new BadRequestException(`An entry can have at most ${MAX_RECEIPTS_PER_ENTRY} receipts`)
     }
-    if (file.truncated || file.bytes.length > this.maxBytes) {
-      throw new PayloadTooLargeException(`Files can be at most ${Math.floor(this.maxBytes / 1024 / 1024)} MB`)
-    }
-    if (file.bytes.length === 0) throw new BadRequestException('The file is empty')
-    const mimeType = sniffMimeType(file.bytes)
-    if (!mimeType || !(ALLOWED_UPLOAD_TYPES as readonly string[]).includes(mimeType)) {
-      throw new BadRequestException('Only JPEG, PNG, WebP, HEIC images and PDF files can be uploaded')
-    }
+    const mimeType = checkUpload(file, this.maxBytes)
 
     const id = randomUUID()
     const storageKey = `${staff.clinicId}/finance/${entryId}/${id}.${FILE_EXTENSION[mimeType]}`

@@ -116,13 +116,13 @@ export class FinanceController {
     return this.entries.void(staff, id, body.reason)
   }
 
-  /** multipart/form-data with one `file`. */
-  @Post('entries/:itemId/receipts')
+  /** multipart/form-data with one `file`. `:id`, not `:itemId`, so the audit records the new receipt. */
+  @Post('entries/:id/receipts')
   @ApiConsumes('multipart/form-data')
   @Audited('finance.receipt.upload', 'finance_receipt')
   async uploadReceipt(
     @CurrentStaff() staff: AuthStaff,
-    @Param('itemId', UuidPipe) id: string,
+    @Param('id', UuidPipe) id: string,
     @Req() req: FastifyRequest,
   ) {
     if (!req.isMultipart()) throw new BadRequestException('Send the file as multipart/form-data')

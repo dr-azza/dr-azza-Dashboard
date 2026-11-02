@@ -1,4 +1,4 @@
-import { RequestError, useFormat } from '@/components/app/form'
+import { RequestError, todayInputValue, useFormat } from '@/components/app/form'
 import { StatCard } from '@/components/app/ui'
 import { Badge } from '@/components/catalyst/badge'
 import { Button } from '@/components/catalyst/button'
@@ -18,12 +18,13 @@ import {
   type FinanceTransactionDto,
   MAX_FINANCE_RANGE_DAYS,
   monthBounds,
+  shiftDay,
 } from '@azza/shared'
 import { ArrowDownTrayIcon, ArrowPathIcon, PaperClipIcon, PlusIcon, UserIcon } from '@heroicons/react/16/solid'
 import clsx from 'clsx'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router'
-import { dayDate, FinanceGate, FinancePageHeader, localToday } from './shared'
+import { dayDate, FinanceGate, FinancePageHeader } from './shared'
 
 export function FinanceTransactionsPage() {
   return (
@@ -37,7 +38,7 @@ function Transactions() {
   const { t, lang, formatDate } = useLang()
   const fmt = useFormat()
   const [params, setParams] = useSearchParams()
-  const today = localToday()
+  const today = todayInputValue()
   const thisMonth = monthBounds(today.slice(0, 7))
   const from = params.get('from') ?? thisMonth.from
   const to = params.get('to') ?? thisMonth.to
@@ -68,8 +69,7 @@ function Transactions() {
       { replace: true },
     )
 
-  const yesterday = new Date(dayDate(today).getTime() - 86_400_000)
-  const yesterdayDay = `${yesterday.getFullYear()}-${String(yesterday.getMonth() + 1).padStart(2, '0')}-${String(yesterday.getDate()).padStart(2, '0')}`
+  const yesterdayDay = shiftDay(today, -1)
   const lastMonth = monthBounds(addMonths(today.slice(0, 7), -1))
   const presets = [
     { key: 'today', from: today, to: today },
@@ -102,10 +102,18 @@ function Transactions() {
         subtitle={t('finance.tx.subtitle')}
         actions={
           <>
-            <Button outline href={financeExportUrl(from, to, lang)} download disabled={!!rangeError}>
-              <ArrowDownTrayIcon />
-              {t('finance.export')}
-            </Button>
+            {/* A link can't be disabled, so an invalid range gets a plain disabled button instead. */}
+            {rangeError ? (
+              <Button outline disabled>
+                <ArrowDownTrayIcon />
+                {t('finance.export')}
+              </Button>
+            ) : (
+              <Button outline href={financeExportUrl(from, to, lang)} download>
+                <ArrowDownTrayIcon />
+                {t('finance.export')}
+              </Button>
+            )}
             <Button outline onClick={() => setAdding('INCOME')}>
               <PlusIcon />
               {t('finance.addIncome')}

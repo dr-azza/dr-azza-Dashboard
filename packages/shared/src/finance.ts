@@ -260,6 +260,11 @@ export function addMonths(month: string, n: number) {
   return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}`
 }
 
+/** A calendar day moved by n days: shiftDay("2026-03-01", -1) → "2026-02-28". */
+export function shiftDay(day: string, n: number) {
+  return new Date(Date.parse(`${day}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10)
+}
+
 /** Every day from `from` to `to`, inclusive. */
 export function eachDay(from: string, to: string) {
   const out: string[] = []

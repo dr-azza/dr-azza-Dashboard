@@ -284,14 +284,64 @@ describe.skipIf(!url)('finance (integration)', () => {
 
     const paused = await call('PATCH', `/finance/recurring/${rec.id}`, { paused: true })
     expect(paused.json()).toMatchObject({ paused: true, nextOn: null })
-    // Pretend it was paused for months: resuming starts from today, nothing is back-filled.
+    // Pretend it was paused for months: resuming continues from today, nothing is back-filled.
     await db.recurringExpense.update({
       where: { id: rec.id },
-      data: { startsOn: new Date(`${addMonths(month, -6)}-01T00:00:00Z`) },
+      data: { materializedThrough: new Date(`${addMonths(month, -6)}-01T00:00:00Z`) },
     })
     const resumed = await call('PATCH', `/finance/recurring/${rec.id}`, { paused: false })
-    expect(resumed.json()).toMatchObject({ paused: false, startsOn: today })
+    expect(resumed.json()).toMatchObject({ paused: false, startsOn: start })
     expect(await added()).toBe(3)
+
+    // A category with a running recurring expense can't be archived.
+    const archive = await call('PATCH', `/finance/categories/${cat.SALARIES}`, { archived: true })
+    expect(archive.statusCode).toBe(409)
+    expect(archive.json().code).toBe('CATEGORY_HAS_RECURRING')
+  })
+
+  it('restarting an ended recurring expense does not add the months it was off', async () => {
+    const ended = (
+      await call('POST', '/finance/recurring', {
+        categoryId: cat.UTILITIES,
+        amount: 300,
+        method: 'CASH',
+        description: 'Water',
+        dayOfMonth: 1,
+        startsOn: `${addMonths(month, -5)}-01`,
+        endsOn: `${addMonths(month, -4)}-01`,
+      })
+    ).json()
+    const count = () => db.financeEntry.count({ where: { recurringId: ended.id } })
+    expect(await count()).toBe(2) // the two months before it ended
+    await call('PATCH', `/finance/recurring/${ended.id}`, { endsOn: null })
+    await call('GET', '/finance/recurring')
+    expect(await count()).toBe(2)
+  })
+
+  it('accepts every two-decimal amount, including ones floats cannot hold exactly', async () => {
+    for (const amount of [1.1, 0.29, 1.15, 0.57, 19.99]) {
+      expect((await entry({ categoryId: cat.MARKETING, amount })).json().amount).toBe(amount.toFixed(2))
+    }
+  })
+
+  it('logs receipt uploads under the receipt, not the entry', async () => {
+    const e = (await entry({ categoryId: cat.MARKETING, amount: 10 })).json()
+    const boundary = '----audit' + run
+    const res = await app.inject({
+      method: 'POST',
+      url: `/api/v1/finance/entries/${e.id}/receipts`,
+      headers: { cookie: owner, 'content-type': `multipart/form-data; boundary=${boundary}` },
+      payload: Buffer.concat([
+        Buffer.from(
+          `--${boundary}\r\nContent-Disposition: form-data; name="file"; filename="r.pdf"\r\nContent-Type: application/pdf\r\n\r\n`,
+        ),
+        Buffer.from('%PDF-1.4\n'),
+        Buffer.from(`\r\n--${boundary}--\r\n`),
+      ]),
+    })
+    expect(res.statusCode).toBe(201)
+    const log = await db.auditLog.findFirst({ where: { action: 'finance.receipt.upload' }, orderBy: { id: 'desc' } })
+    expect(log?.entityId).toBe(res.json().id)
   })
 
   it('exports the ledger as Excel-friendly CSV, safe from formulas', async () => {

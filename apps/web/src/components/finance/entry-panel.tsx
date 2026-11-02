@@ -10,6 +10,7 @@ import { financeReceiptUrl } from '@/lib/api'
 import {
   useCreateFinanceEntry,
   useFinanceCategories,
+  useFinanceEntry,
   useRemoveFinanceReceipt,
   useUpdateFinanceEntry,
   useUploadFinanceReceipt,
@@ -30,7 +31,7 @@ import { useRef, useState } from 'react'
 
 /** Add income or an expense (no `entry`), or view, edit and void one. */
 export function FinanceEntryPanel({
-  entry,
+  entry: initialEntry,
   kind: initialKind = 'EXPENSE',
   onClose,
 }: {
@@ -46,6 +47,11 @@ export function FinanceEntryPanel({
   const voidEntry = useVoidFinanceEntry()
   const upload = useUploadFinanceReceipt()
   const removeReceipt = useRemoveFinanceReceipt()
+  // Once a new entry is saved, the panel works on it: retrying failed receipts must not create
+  // the entry a second time. The query keeps its receipts current while the panel is open.
+  const [createdId, setCreatedId] = useState<string | undefined>()
+  const live = useFinanceEntry(initialEntry?.id ?? createdId, initialEntry)
+  const entry = live.data
 
   const [kind, setKind] = useState<FinanceKindCode>(entry?.kind ?? initialKind)
   const [categoryId, setCategoryId] = useState(entry?.category.id ?? '')
@@ -121,6 +127,7 @@ export function FinanceEntryPanel({
         let saved: FinanceEntryDto
         if (!entry) {
           saved = await create.mutateAsync(d)
+          setCreatedId(saved.id)
         } else {
           // Send only what changed, so an edit never rewrites fields nobody touched.
           const changes: UpdateFinanceEntryInput = {}

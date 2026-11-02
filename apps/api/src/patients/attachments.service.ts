@@ -48,6 +48,22 @@ export const safeFileName = (name: string) =>
     .trim()
     .slice(0, 150) || 'file'
 
+/**
+ * Size, emptiness and real file type (from the bytes, never the browser's claim) of an upload.
+ * Returns the detected MIME type.
+ */
+export function checkUpload(file: { bytes: Buffer; truncated: boolean }, maxBytes: number) {
+  if (file.truncated || file.bytes.length > maxBytes) {
+    throw new PayloadTooLargeException(`Files can be at most ${Math.floor(maxBytes / 1024 / 1024)} MB`)
+  }
+  if (file.bytes.length === 0) throw new BadRequestException('The file is empty')
+  const mimeType = sniffMimeType(file.bytes)
+  if (!mimeType || !(ALLOWED_UPLOAD_TYPES as readonly string[]).includes(mimeType)) {
+    throw new BadRequestException('Only JPEG, PNG, WebP, HEIC images and PDF files can be uploaded')
+  }
+  return mimeType
+}
+
 @Injectable()
 export class AttachmentsService {
   private readonly maxBytes: number
@@ -78,15 +94,7 @@ export class AttachmentsService {
     file: { fileName: string; bytes: Buffer; truncated: boolean },
   ) {
     const patient = await this.scope.require(staff, patientId)
-    if (file.truncated || file.bytes.length > this.maxBytes) {
-      throw new PayloadTooLargeException(`Files can be at most ${Math.floor(this.maxBytes / 1024 / 1024)} MB`)
-    }
-    if (file.bytes.length === 0) throw new BadRequestException('The file is empty')
-
-    const mimeType = sniffMimeType(file.bytes)
-    if (!mimeType || !(ALLOWED_UPLOAD_TYPES as readonly string[]).includes(mimeType)) {
-      throw new BadRequestException('Only JPEG, PNG, WebP, HEIC images and PDF files can be uploaded')
-    }
+    const mimeType = checkUpload(file, this.maxBytes)
     if (meta.paymentId) {
       const ok = await this.prisma.payment.count({ where: { id: meta.paymentId, patientId } })
       if (!ok) throw new BadRequestException('Payment does not belong to this patient')

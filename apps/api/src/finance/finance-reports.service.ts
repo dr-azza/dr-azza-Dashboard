@@ -11,12 +11,13 @@ import {
   type FinanceTransactionsQuery,
   PAYMENT_METHODS,
   type PaymentMethodCode,
+  shiftDay,
 } from '@azza/shared'
 import { Injectable } from '@nestjs/common'
 import type { AuthStaff } from '../auth/auth.types'
 import { fromIsoDay, toIsoDay } from '../common/format'
 import { Prisma } from '../generated/prisma/client'
-import { clinicToday } from '../patients/patient-scope.service'
+import { clinicToday, zonedDayStart } from '../patients/patient-scope.service'
 import { PrismaService } from '../prisma/prisma.service'
 import { categoryName } from './finance-categories.service'
 import { ENTRY_INCLUDE, toEntryDto } from './finance-entries.service'
@@ -115,7 +116,7 @@ export class FinanceReportsService {
     limit = LEDGER_LIMIT,
   ): Promise<FinanceTransactionsDto> {
     const { timeZone } = await this.prepare(staff)
-    const { start, end } = await this.bounds(timeZone, q.from, q.to)
+    const { start, end } = this.bounds(timeZone, q.from, q.to)
     const wantPayments = q.type !== 'expense' && !q.categoryId
     const [payments, entries] = await Promise.all([
       wantPayments
@@ -237,15 +238,12 @@ export class FinanceReportsService {
   }
 
   /** The instants where the first day starts and the day after the last begins, in the clinic's zone. */
-  private async bounds(timeZone: string, from: string, to: string) {
-    const [row] = await this.prisma.$queryRaw<{ start: Date; end: Date }[]>`
-      SELECT (${from}::date)::timestamp AT TIME ZONE ${timeZone} AS start,
-             (${to}::date + 1)::timestamp AT TIME ZONE ${timeZone} AS "end"`
-    return row
+  private bounds(timeZone: string, from: string, to: string) {
+    return { start: zonedDayStart(from, timeZone), end: zonedDayStart(shiftDay(to, 1), timeZone) }
   }
 
   private async flow(clinicId: string, timeZone: string, from: string, to: string): Promise<Flow> {
-    const { start, end } = await this.bounds(timeZone, from, to)
+    const { start, end } = this.bounds(timeZone, from, to)
     const [payments, entries] = await Promise.all([
       this.prisma.$queryRaw<{ day: Date; method: PaymentMethodCode; total: Decimal }[]>`
         SELECT (p.paid_at AT TIME ZONE ${timeZone})::date AS day, p.method::text AS method, SUM(p.amount) AS total

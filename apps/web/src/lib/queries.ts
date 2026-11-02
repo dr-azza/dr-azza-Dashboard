@@ -659,3 +659,12 @@ export const useUpdateRecurringExpense = () =>
   useFinanceMutation(({ recurringId, ...input }: UpdateRecurringExpenseInput & { recurringId: string }) =>
     api<RecurringExpenseDto>(`/finance/recurring/${recurringId}`, { method: 'PATCH', body: input }),
   )
+
+/** One entry, kept fresh (receipts change while its panel is open). `initial` shows at once. */
+export const useFinanceEntry = (entryId: string | undefined, initial?: FinanceEntryDto) =>
+  useQuery({
+    enabled: !!entryId,
+    queryKey: ['finance', 'entry', entryId],
+    queryFn: () => api<FinanceEntryDto>(`/finance/entries/${entryId}`),
+    initialData: initial,
+  })
