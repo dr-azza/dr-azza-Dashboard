@@ -5,13 +5,7 @@ import {
   MAX_UPLOAD_BYTES,
   type UpdateFinanceEntryInput,
 } from '@azza/shared'
-import {
-  BadRequestException,
-  ConflictException,
-  Inject,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common'
+import { BadRequestException, ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common'
 import { createHash, randomUUID } from 'node:crypto'
 import type { AuthStaff } from '../auth/auth.types'
 import { fromIsoDay, STAFF_REF_SELECT, staffRef, toIsoDay } from '../common/format'

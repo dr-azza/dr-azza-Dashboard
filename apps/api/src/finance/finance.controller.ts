@@ -120,11 +120,7 @@ export class FinanceController {
   @Post('entries/:id/receipts')
   @ApiConsumes('multipart/form-data')
   @Audited('finance.receipt.upload', 'finance_receipt')
-  async uploadReceipt(
-    @CurrentStaff() staff: AuthStaff,
-    @Param('id', UuidPipe) id: string,
-    @Req() req: FastifyRequest,
-  ) {
+  async uploadReceipt(@CurrentStaff() staff: AuthStaff, @Param('id', UuidPipe) id: string, @Req() req: FastifyRequest) {
     if (!req.isMultipart()) throw new BadRequestException('Send the file as multipart/form-data')
     const part = await req.file()
     if (!part) throw new BadRequestException('No file was sent')
