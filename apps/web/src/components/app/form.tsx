@@ -41,6 +41,11 @@ export function useFormat() {
   return {
     money: (amount: string | number, currency = 'EGP') =>
       new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 2 }).format(Number(amount)),
+    /** Rounded to whole pounds, for headline totals where piastres are noise. */
+    moneyWhole: (amount: string | number, currency = 'EGP') =>
+      new Intl.NumberFormat(locale, { style: 'currency', currency, maximumFractionDigits: 0 }).format(
+        Math.round(Number(amount)),
+      ),
     day: (iso: string) =>
       formatDate(new Date(iso.length === 10 ? `${iso}T12:00:00` : iso), {
         day: 'numeric',

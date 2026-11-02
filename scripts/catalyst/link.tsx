@@ -2,8 +2,9 @@ import * as Headless from '@headlessui/react'
 import React, { forwardRef } from 'react'
 import { Link as RouterLink } from 'react-router'
 
-// Internal paths go through React Router; anything else (http, mailto, tel, #hash) stays a plain anchor.
-const EXTERNAL = /^(https?:|mailto:|tel:|#)/
+// Internal paths go through React Router; anything else (http, mailto, tel, #hash) stays a plain
+// anchor, and so do API URLs (downloads such as exports and receipts are not app pages).
+const EXTERNAL = /^(https?:|mailto:|tel:|#|\/api\/)/
 
 export const Link = forwardRef(function Link(
   { href, ...props }: { href: string } & React.ComponentPropsWithoutRef<'a'>,

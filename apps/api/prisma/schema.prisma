@@ -29,15 +29,18 @@ model Clinic {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  staff         StaffMember[]
-  patients      Patient[]
-  forms         Form[]
-  formResponses FormResponse[]
-  reminders     Reminder[]
-  auditLogs     AuditLog[]
-  caseTypes     CaseType[]
-  appointments  Appointment[]
-  tasks         Task[]
+  staff             StaffMember[]
+  patients          Patient[]
+  forms             Form[]
+  formResponses     FormResponse[]
+  reminders         Reminder[]
+  auditLogs         AuditLog[]
+  caseTypes         CaseType[]
+  appointments      Appointment[]
+  tasks             Task[]
+  financeCategories FinanceCategory[]
+  financeEntries    FinanceEntry[]
+  recurringExpenses RecurringExpense[]
 
   @@map("clinics")
 }
@@ -67,28 +70,32 @@ model StaffMember {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(3)
 
-  clinic               Clinic         @relation(fields: [clinicId], references: [id], onDelete: Restrict)
-  visits               Visit[]
-  reviewedAnswers      FormResponse[] @relation("FormResponseReviewer")
-  linkedAnswers        FormResponse[] @relation("FormResponseLinker")
-  formsCreated         Form[]         @relation("FormCreator")
-  formsUpdated         Form[]         @relation("FormUpdater")
-  formVersions         FormVersion[]
-  formLinks            FormLink[]
-  sessions             Session[]
-  prescriptions        Prescription[]
-  payments             Payment[]
-  attachments          Attachment[]
-  notes                ClinicalNote[]
-  historyWritten       HistoryEntry[] @relation("HistoryAuthor")
-  historyEdited        HistoryEntry[] @relation("HistoryEditor")
-  appointmentsAssigned Appointment[]  @relation("AppointmentAssignee")
-  appointmentsCreated  Appointment[]  @relation("AppointmentCreator")
-  tasksAssigned        Task[]         @relation("TaskAssignee")
-  tasksCreated         Task[]         @relation("TaskCreator")
-  tasksCompleted       Task[]         @relation("TaskCompleter")
-  invites              StaffInvite[]  @relation("InviteFor")
-  invitesSent          StaffInvite[]  @relation("InviteSentBy")
+  clinic                Clinic             @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  visits                Visit[]
+  reviewedAnswers       FormResponse[]     @relation("FormResponseReviewer")
+  linkedAnswers         FormResponse[]     @relation("FormResponseLinker")
+  formsCreated          Form[]             @relation("FormCreator")
+  formsUpdated          Form[]             @relation("FormUpdater")
+  formVersions          FormVersion[]
+  formLinks             FormLink[]
+  sessions              Session[]
+  prescriptions         Prescription[]
+  payments              Payment[]
+  attachments           Attachment[]
+  notes                 ClinicalNote[]
+  historyWritten        HistoryEntry[]     @relation("HistoryAuthor")
+  historyEdited         HistoryEntry[]     @relation("HistoryEditor")
+  appointmentsAssigned  Appointment[]      @relation("AppointmentAssignee")
+  appointmentsCreated   Appointment[]      @relation("AppointmentCreator")
+  tasksAssigned         Task[]             @relation("TaskAssignee")
+  tasksCreated          Task[]             @relation("TaskCreator")
+  tasksCompleted        Task[]             @relation("TaskCompleter")
+  financeEntriesCreated FinanceEntry[]     @relation("FinanceEntryCreator")
+  financeEntriesVoided  FinanceEntry[]     @relation("FinanceEntryVoider")
+  financeReceipts       FinanceReceipt[]
+  recurringExpenses     RecurringExpense[]
+  invites               StaffInvite[]      @relation("InviteFor")
+  invitesSent           StaffInvite[]      @relation("InviteSentBy")
 
   @@index([clinicId, fullName])
   @@map("staff_members")
@@ -824,4 +831,131 @@ model Task {
   @@index([assigneeId, completedAt, dueAt])
   @@index([patientId, dueAt])
   @@map("tasks")
+}
+
+// ---------------------------------------------------------------------------
+// Clinic finances: income and expenses beyond patient payments (owners only)
+// ---------------------------------------------------------------------------
+
+enum FinanceKind {
+  INCOME
+  EXPENSE
+
+  @@map("finance_kind")
+}
+
+/// Expense or income categories. The clinic starts with a built-in set (with a `systemKey`) and
+/// can rename, add or archive them.
+model FinanceCategory {
+  id         String      @id @default(uuid(7)) @db.Uuid
+  clinicId   String      @map("clinic_id") @db.Uuid
+  kind       FinanceKind
+  nameEn     String      @map("name_en")
+  nameAr     String      @map("name_ar")
+  /// Set for the built-in categories, so they're created once per clinic.
+  systemKey  String?     @map("system_key")
+  sortOrder  Int         @default(0) @map("sort_order")
+  archivedAt DateTime?   @map("archived_at") @db.Timestamptz(3)
+  createdAt  DateTime    @default(now()) @map("created_at") @db.Timestamptz(3)
+
+  clinic    Clinic             @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  entries   FinanceEntry[]
+  recurring RecurringExpense[]
+
+  @@unique([clinicId, systemKey])
+  @@index([clinicId, kind])
+  @@map("finance_categories")
+}
+
+/// Money in or out that isn't a patient payment: rent, salaries, supplies, a lab commission...
+/// Never deleted; a mistake is voided with a reason, like patient payments.
+model FinanceEntry {
+  id              String        @id @default(uuid(7)) @db.Uuid
+  clinicId        String        @map("clinic_id") @db.Uuid
+  kind            FinanceKind
+  categoryId      String        @map("category_id") @db.Uuid
+  /// Money is stored as Decimal, never float.
+  amount          Decimal       @db.Decimal(12, 2)
+  currency        String        @default("EGP") @db.Char(3)
+  method          PaymentMethod
+  /// The day it was paid or received, in the clinic's time zone.
+  occurredOn      DateTime      @map("occurred_on") @db.Date
+  description     String
+  /// Paid to (expense) or received from (income), e.g. the landlord or a supplier.
+  counterparty    String?
+  reference       String?
+  notes           String?
+  /// Set when generated from a recurring expense; one entry per recurring expense and month.
+  recurringId     String?       @map("recurring_id") @db.Uuid
+  recurrenceMonth DateTime?     @map("recurrence_month") @db.Date
+  createdById     String?       @map("created_by_id") @db.Uuid
+  createdAt       DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt       DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+  voidedAt        DateTime?     @map("voided_at") @db.Timestamptz(3)
+  voidReason      String?       @map("void_reason")
+  voidedById      String?       @map("voided_by_id") @db.Uuid
+
+  clinic    Clinic            @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  category  FinanceCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  recurring RecurringExpense? @relation(fields: [recurringId], references: [id], onDelete: SetNull)
+  createdBy StaffMember?      @relation("FinanceEntryCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  voidedBy  StaffMember?      @relation("FinanceEntryVoider", fields: [voidedById], references: [id], onDelete: SetNull)
+  receipts  FinanceReceipt[]
+
+  @@unique([recurringId, recurrenceMonth])
+  @@index([clinicId, occurredOn])
+  @@map("finance_entries")
+}
+
+/// A photo or PDF of the receipt or invoice behind an entry.
+model FinanceReceipt {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  entryId      String    @map("entry_id") @db.Uuid
+  uploadedById String?   @map("uploaded_by_id") @db.Uuid
+  fileName     String    @map("file_name")
+  mimeType     String    @map("mime_type")
+  sizeBytes    Int       @map("size_bytes")
+  sha256       String
+  storageKey   String    @unique @map("storage_key")
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(3)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(3)
+
+  entry      FinanceEntry @relation(fields: [entryId], references: [id], onDelete: Restrict)
+  uploadedBy StaffMember? @relation(fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([entryId])
+  @@map("finance_receipts")
+}
+
+/// An expense that repeats every month (rent, salaries). Its entries are added automatically on
+/// the chosen day; each one can still be edited or voided on its own.
+model RecurringExpense {
+  id                  String        @id @default(uuid(7)) @db.Uuid
+  clinicId            String        @map("clinic_id") @db.Uuid
+  categoryId          String        @map("category_id") @db.Uuid
+  amount              Decimal       @db.Decimal(12, 2)
+  currency            String        @default("EGP") @db.Char(3)
+  method              PaymentMethod
+  description         String
+  counterparty        String?
+  /// 1–28, so every month has the day.
+  dayOfMonth          Int           @map("day_of_month")
+  /// First and (optional) last day it can occur.
+  startsOn            DateTime      @map("starts_on") @db.Date
+  endsOn              DateTime?     @map("ends_on") @db.Date
+  pausedAt            DateTime?     @map("paused_at") @db.Timestamptz(3)
+  /// Every occurrence up to this day has been added (or deliberately skipped: paused or ended
+  /// months). Null until the first run, which adds everything since `startsOn`.
+  materializedThrough DateTime?     @map("materialized_through") @db.Date
+  createdById         String?       @map("created_by_id") @db.Uuid
+  createdAt           DateTime      @default(now()) @map("created_at") @db.Timestamptz(3)
+  updatedAt           DateTime      @updatedAt @map("updated_at") @db.Timestamptz(3)
+
+  clinic    Clinic          @relation(fields: [clinicId], references: [id], onDelete: Restrict)
+  category  FinanceCategory @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  createdBy StaffMember?    @relation(fields: [createdById], references: [id], onDelete: SetNull)
+  entries   FinanceEntry[]
+
+  @@index([clinicId])
+  @@map("recurring_expenses")
 }

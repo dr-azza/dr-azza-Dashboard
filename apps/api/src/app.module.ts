@@ -12,6 +12,7 @@ import { PatientsModule } from './patients/patients.module'
 import { PrismaModule } from './prisma/prisma.module'
 import { FormsModule } from './forms/forms.module'
 import { StaffModule } from './staff/staff.module'
+import { FinanceModule } from './finance/finance.module'
 import { TasksModule } from './tasks/tasks.module'
 import { TeamModule } from './team/team.module'
 import { StorageModule } from './storage/storage.module'
@@ -31,6 +32,7 @@ import { StorageModule } from './storage/storage.module'
     FormsModule,
     TeamModule,
     TasksModule,
+    FinanceModule,
   ],
   providers: [
     // Every request body, query and param with a Zod DTO is validated before reaching a handler.

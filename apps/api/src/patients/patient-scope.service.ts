@@ -10,6 +10,34 @@ export function clinicToday(timeZone = 'Africa/Cairo', now = new Date()) {
 }
 
 /**
+ * The instant a calendar day (YYYY-MM-DD) begins in a time zone. Computed from the zone's offset
+ * at that moment, so it is right on daylight-saving days too.
+ */
+export function zonedDayStart(day: string, timeZone = 'Africa/Cairo') {
+  const utcMidnight = Date.parse(`${day}T00:00:00Z`)
+  const offsetAt = (instant: number) => {
+    const parts = Object.fromEntries(
+      new Intl.DateTimeFormat('en-US', {
+        timeZone,
+        hourCycle: 'h23',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+      })
+        .formatToParts(instant)
+        .map((p) => [p.type, p.value]),
+    )
+    const local = Date.UTC(+parts.year, +parts.month - 1, +parts.day, +parts.hour, +parts.minute, +parts.second)
+    return local - instant
+  }
+  const guess = utcMidnight - offsetAt(utcMidnight)
+  return new Date(utcMidnight - offsetAt(guess))
+}
+
+/**
  * Gestational facts from an LMP stored as a DATE. Dates are compared as calendar days in the
  * clinic's time zone, using the same rules as the web and mobile apps (@azza/shared).
  */

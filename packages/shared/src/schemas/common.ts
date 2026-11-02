@@ -32,3 +32,13 @@ export interface Page<T> {
   items: T[]
   nextCursor: string | null
 }
+
+/**
+ * A money amount: positive, at most two decimals (piastres), below ten million. Compared with a
+ * tolerance, because binary floats can't hold most decimals exactly (1.1 * 100 is 110.00000000000001).
+ */
+export const moneyAmount = z
+  .number()
+  .positive()
+  .max(10_000_000)
+  .refine((v) => Math.abs(v * 100 - Math.round(v * 100)) < 1e-6, 'At most two decimals')

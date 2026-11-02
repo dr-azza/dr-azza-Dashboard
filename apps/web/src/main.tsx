@@ -72,6 +72,23 @@ const router = createBrowserRouter([
                 path: '/reminders',
                 lazy: () => import('@/pages/reminders').then((m) => ({ Component: m.RemindersPage })),
               },
+              {
+                path: '/finance',
+                lazy: () => import('@/pages/finance/overview').then((m) => ({ Component: m.FinanceOverviewPage })),
+              },
+              {
+                path: '/finance/transactions',
+                lazy: () =>
+                  import('@/pages/finance/transactions').then((m) => ({ Component: m.FinanceTransactionsPage })),
+              },
+              {
+                path: '/finance/recurring',
+                lazy: () => import('@/pages/finance/recurring').then((m) => ({ Component: m.FinanceRecurringPage })),
+              },
+              {
+                path: '/finance/categories',
+                lazy: () => import('@/pages/finance/categories').then((m) => ({ Component: m.FinanceCategoriesPage })),
+              },
               { path: '/team', lazy: () => import('@/pages/team').then((m) => ({ Component: m.TeamPage })) },
               {
                 path: '/settings',

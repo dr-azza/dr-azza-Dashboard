@@ -51,6 +51,18 @@ import type {
   UpdateHistoryEntryInput,
   UpdatePatientInput,
   VisitDto,
+  CreateFinanceCategoryInput,
+  CreateFinanceEntryInput,
+  CreateRecurringExpenseInput,
+  FinanceCategoryDto,
+  FinanceEntryDto,
+  FinanceReceiptDto,
+  FinanceSummaryDto,
+  FinanceTransactionsDto,
+  RecurringExpenseDto,
+  UpdateFinanceCategoryInput,
+  UpdateFinanceEntryInput,
+  UpdateRecurringExpenseInput,
 } from '@azza/shared'
 import {
   keepPreviousData,
@@ -560,3 +572,99 @@ export const useSetTaskDone = () =>
 
 export const useDeleteTask = () =>
   useTaskMutation((taskId: string) => api<TaskDto>(`/reminders/${taskId}`, { method: 'DELETE' }))
+
+// --- Finance (owners only) -------------------------------------------------------------
+
+export const useFinanceSummary = (from: string, to: string, groupBy: 'day' | 'month', enabled = true) =>
+  useQuery({
+    enabled,
+    queryKey: ['finance', 'summary', { from, to, groupBy }],
+    queryFn: () => api<FinanceSummaryDto>(`/finance/summary?${new URLSearchParams({ from, to, groupBy })}`),
+    placeholderData: keepPreviousData,
+  })
+
+export interface FinanceTransactionFilters {
+  from: string
+  to: string
+  type?: 'revenue' | 'expense'
+}
+
+export const useFinanceTransactions = (filters: FinanceTransactionFilters, enabled = true) =>
+  useQuery({
+    enabled,
+    queryKey: ['finance', 'transactions', filters],
+    queryFn: () => {
+      const params = new URLSearchParams({ from: filters.from, to: filters.to })
+      if (filters.type) params.set('type', filters.type)
+      return api<FinanceTransactionsDto>(`/finance/transactions?${params}`)
+    },
+    placeholderData: keepPreviousData,
+  })
+
+export const useFinanceCategories = (includeArchived = false) =>
+  useQuery({
+    queryKey: ['finance', 'categories', { includeArchived }],
+    queryFn: () => api<FinanceCategoryDto[]>(`/finance/categories${includeArchived ? '?includeArchived=true' : ''}`),
+    staleTime: 60_000,
+  })
+
+export const useRecurringExpenses = () =>
+  useQuery({ queryKey: ['finance', 'recurring'], queryFn: () => api<RecurringExpenseDto[]>('/finance/recurring') })
+
+/** Any finance change can move every report, so they all refresh. */
+function useFinanceMutation<TInput, TResult>(fn: (input: TInput) => Promise<TResult>) {
+  const qc = useQueryClient()
+  return useMutation({ mutationFn: fn, onSettled: () => qc.invalidateQueries({ queryKey: ['finance'] }) })
+}
+
+export const useCreateFinanceEntry = () =>
+  useFinanceMutation((input: CreateFinanceEntryInput) => api<FinanceEntryDto>('/finance/entries', { body: input }))
+
+export const useUpdateFinanceEntry = () =>
+  useFinanceMutation(({ entryId, ...input }: UpdateFinanceEntryInput & { entryId: string }) =>
+    api<FinanceEntryDto>(`/finance/entries/${entryId}`, { method: 'PATCH', body: input }),
+  )
+
+export const useVoidFinanceEntry = () =>
+  useFinanceMutation(({ entryId, reason }: { entryId: string; reason: string }) =>
+    api<FinanceEntryDto>(`/finance/entries/${entryId}/void`, { body: { reason } }),
+  )
+
+export const useUploadFinanceReceipt = () =>
+  useFinanceMutation(({ entryId, file }: { entryId: string; file: File }) => {
+    const form = new FormData()
+    form.set('file', file)
+    return api<FinanceReceiptDto>(`/finance/entries/${entryId}/receipts`, { body: form })
+  })
+
+export const useRemoveFinanceReceipt = () =>
+  useFinanceMutation((receiptId: string) => api<void>(`/finance/receipts/${receiptId}`, { method: 'DELETE' }))
+
+export const useCreateFinanceCategory = () =>
+  useFinanceMutation((input: CreateFinanceCategoryInput) =>
+    api<FinanceCategoryDto>('/finance/categories', { body: input }),
+  )
+
+export const useUpdateFinanceCategory = () =>
+  useFinanceMutation(({ categoryId, ...input }: UpdateFinanceCategoryInput & { categoryId: string }) =>
+    api<FinanceCategoryDto>(`/finance/categories/${categoryId}`, { method: 'PATCH', body: input }),
+  )
+
+export const useCreateRecurringExpense = () =>
+  useFinanceMutation((input: CreateRecurringExpenseInput) =>
+    api<RecurringExpenseDto>('/finance/recurring', { body: input }),
+  )
+
+export const useUpdateRecurringExpense = () =>
+  useFinanceMutation(({ recurringId, ...input }: UpdateRecurringExpenseInput & { recurringId: string }) =>
+    api<RecurringExpenseDto>(`/finance/recurring/${recurringId}`, { method: 'PATCH', body: input }),
+  )
+
+/** One entry, kept fresh (receipts change while its panel is open). `initial` shows at once. */
+export const useFinanceEntry = (entryId: string | undefined, initial?: FinanceEntryDto) =>
+  useQuery({
+    enabled: !!entryId,
+    queryKey: ['finance', 'entry', entryId],
+    queryFn: () => api<FinanceEntryDto>(`/finance/entries/${entryId}`),
+    initialData: initial,
+  })
